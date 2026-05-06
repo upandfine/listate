@@ -100,18 +100,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  getDb()
-    .insert(links)
-    .values({
-      id,
-      userId: session.user.id,
-      originalUrl: url,
-      ogTitle: title,
-      ogDescription: description,
-      ogImage: image,
-      ogSiteName: siteName,
-    })
-    .run();
+  try {
+    getDb()
+      .insert(links)
+      .values({
+        id,
+        userId: session.user.id,
+        originalUrl: url,
+        ogTitle: title,
+        ogDescription: description,
+        ogImage: image,
+        ogSiteName: siteName,
+      })
+      .run();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unbekannter DB-Fehler';
+    console.error('[api/create] insert failed:', err);
+    return NextResponse.json(
+      { error: `Speichern fehlgeschlagen: ${message}` },
+      { status: 500 }
+    );
+  }
 
   const baseUrl = getBaseUrl();
   return NextResponse.json({
