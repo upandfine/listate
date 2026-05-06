@@ -2,6 +2,7 @@ import { desc, eq, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { deleteLink } from '@/app/actions';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
+import { CopyButton } from '@/app/components/CopyButton';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
@@ -118,84 +119,96 @@ export default async function DashboardPage({
             return (
               <li
                 key={link.id}
-                className="flex gap-4 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
+                className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm"
               >
-                {link.ogImage && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={link.ogImage}
-                    alt=""
-                    className="h-20 w-32 flex-shrink-0 rounded-md object-cover"
-                  />
-                )}
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="font-medium">
-                    {link.ogTitle ?? link.originalUrl}
-                  </div>
-                  <div className="truncate text-xs text-neutral-500">
-                    <a
-                      href={link.originalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                    >
-                      {link.originalUrl}
-                    </a>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs">
-                    <a
-                      href={trackingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-neutral-700 hover:underline"
-                    >
-                      {trackingUrl}
-                    </a>
-                    <span className="text-neutral-400">·</span>
-                    <span className="text-neutral-500">
-                      {new Date(link.createdAt + 'Z').toLocaleString('de-DE')}
-                    </span>
-                    {isAdmin && (
-                      <>
-                        <span className="text-neutral-400">·</span>
-                        <span className="text-neutral-500">
-                          von {link.ownerEmail ?? link.userId}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-shrink-0 flex-col items-end justify-center gap-1.5">
-                  <div className="text-right">
-                    <div className="text-2xl font-semibold leading-none tabular-nums">
-                      {link.clickCount}
+                <div className="flex flex-col sm:flex-row">
+                  {link.ogImage && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={link.ogImage}
+                      alt=""
+                      className="h-32 w-full flex-shrink-0 object-cover sm:h-auto sm:w-32"
+                    />
+                  )}
+
+                  <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+                    {/* Headline + Original-URL */}
+                    <div className="min-w-0 space-y-1">
+                      <div className="font-medium text-neutral-900">
+                        {link.ogTitle ?? link.originalUrl}
+                      </div>
+                      <a
+                        href={link.originalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block truncate text-xs text-neutral-500 hover:underline"
+                      >
+                        {link.originalUrl}
+                      </a>
                     </div>
-                    <div className="mt-1 text-xs uppercase tracking-wide text-neutral-500">
-                      Klicks
+
+                    {/* Tracking-URL + Copy */}
+                    <div className="flex min-w-0 items-center gap-2">
+                      <a
+                        href={trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="min-w-0 flex-1 truncate rounded bg-neutral-100 px-2 py-1 font-mono text-xs text-neutral-700 hover:underline"
+                      >
+                        {trackingUrl}
+                      </a>
+                      <CopyButton value={trackingUrl} />
                     </div>
-                  </div>
-                  <ConfirmButton
-                    formAction={deleteLink}
-                    hiddenFields={{ id: link.id }}
-                    buttonAriaLabel="Link löschen"
-                    buttonClassName="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                    buttonLabel={
-                      <span className="flex items-center gap-1">
-                        <TrashIcon />
-                        Löschen
+
+                    {/* Meta */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
+                      <span>
+                        {new Date(link.createdAt + 'Z').toLocaleString('de-DE')}
                       </span>
-                    }
-                    title="Link wirklich löschen?"
-                    message={
-                      <>
-                        Damit verschwinden Tracking-URL und Klick-Zähler
-                        unwiderruflich. Die ursprüngliche Original-URL
-                        bleibt natürlich existieren.
-                      </>
-                    }
-                    confirmLabel="Endgültig löschen"
-                    danger
-                  />
+                      {isAdmin && (
+                        <>
+                          <span className="text-neutral-300">·</span>
+                          <span>
+                            von {link.ownerEmail ?? link.userId}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Klicks + Aktionen */}
+                  <div className="flex items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-50 px-4 py-3 sm:flex-col sm:justify-center sm:border-l sm:border-t-0 sm:bg-transparent sm:px-5 sm:py-4">
+                    <div className="text-left sm:text-right">
+                      <div className="text-2xl font-semibold leading-none tabular-nums text-neutral-900">
+                        {link.clickCount}
+                      </div>
+                      <div className="mt-1 text-xs uppercase tracking-wide text-neutral-500">
+                        Klicks
+                      </div>
+                    </div>
+                    <ConfirmButton
+                      formAction={deleteLink}
+                      hiddenFields={{ id: link.id }}
+                      buttonAriaLabel="Link löschen"
+                      buttonClassName="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                      buttonLabel={
+                        <span className="flex items-center gap-1">
+                          <TrashIcon />
+                          Löschen
+                        </span>
+                      }
+                      title="Link wirklich löschen?"
+                      message={
+                        <>
+                          Damit verschwinden Tracking-URL und Klick-Zähler
+                          unwiderruflich. Die ursprüngliche Original-URL
+                          bleibt natürlich existieren.
+                        </>
+                      }
+                      confirmLabel="Endgültig löschen"
+                      danger
+                    />
+                  </div>
                 </div>
               </li>
             );
