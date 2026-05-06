@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ogs from 'open-graph-scraper';
-import { getDb } from '@/lib/db';
+import { auth } from '@/auth';
+import { getDb } from '@/db';
+import { links } from '@/db/schema';
 import { generateId } from '@/lib/generateId';
 import { getBaseUrl } from '@/lib/baseUrl';
 
@@ -26,11 +28,22 @@ function pickImage(image: unknown): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { error: 'Nicht angemeldet' },
+      { status: 401 }
+    );
+  }
+
   let body: { url?: unknown };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Ungültiger Request-Body' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Ungültiger Request-Body' },
+      { status: 400 }
+    );
   }
 
   const rawUrl = typeof body.url === 'string' ? body.url.trim() : '';
@@ -70,9 +83,7 @@ export async function POST(req: NextRequest) {
       description =
         result.ogDescription ?? result.twitterDescription ?? null;
       image =
-        pickImage(result.ogImage) ??
-        pickImage(result.twitterImage) ??
-        null;
+        pickImage(result.ogImage) ?? pickImage(result.twitterImage) ?? null;
       siteName = result.ogSiteName ?? null;
     }
   } catch {
@@ -90,11 +101,17 @@ export async function POST(req: NextRequest) {
   }
 
   getDb()
-    .prepare(
-      `INSERT INTO links (id, original_url, og_title, og_description, og_image, og_site_name)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .run(id, url, title, description, image, siteName);
+    .insert(links)
+    .values({
+      id,
+      userId: session.user.id,
+      originalUrl: url,
+      ogTitle: title,
+      ogDescription: description,
+      ogImage: image,
+      ogSiteName: siteName,
+    })
+    .run();
 
   const baseUrl = getBaseUrl();
   return NextResponse.json({

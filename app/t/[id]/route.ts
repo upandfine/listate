@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, type LinkRow } from '@/lib/db';
+import { eq, sql } from 'drizzle-orm';
+import { getDb } from '@/db';
+import { links, type Link } from '@/db/schema';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,33 +44,31 @@ function escapeText(value: string): string {
 
 function metaTag(property: string, content: string | null): string {
   if (!content) return '';
-  const attr = property.startsWith('og:') || property.startsWith('twitter:')
-    ? property.startsWith('og:')
-      ? 'property'
-      : 'name'
+  const attr = property.startsWith('og:')
+    ? 'property'
     : 'name';
   return `<meta ${attr}="${property}" content="${escapeAttr(content)}" />`;
 }
 
-function buildHtml(link: LinkRow): string {
-  const title = link.og_title ?? link.original_url;
+function buildHtml(link: Link): string {
+  const title = link.ogTitle ?? link.originalUrl;
   const tags = [
-    metaTag('og:title', link.og_title),
-    metaTag('og:description', link.og_description),
-    metaTag('og:image', link.og_image),
-    metaTag('og:url', link.original_url),
-    metaTag('og:site_name', link.og_site_name),
+    metaTag('og:title', link.ogTitle),
+    metaTag('og:description', link.ogDescription),
+    metaTag('og:image', link.ogImage),
+    metaTag('og:url', link.originalUrl),
+    metaTag('og:site_name', link.ogSiteName),
     `<meta property="og:type" content="website" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
-    metaTag('twitter:title', link.og_title),
-    metaTag('twitter:description', link.og_description),
-    metaTag('twitter:image', link.og_image),
+    metaTag('twitter:title', link.ogTitle),
+    metaTag('twitter:description', link.ogDescription),
+    metaTag('twitter:image', link.ogImage),
   ]
     .filter(Boolean)
     .join('\n  ');
 
-  const safeUrlAttr = escapeAttr(link.original_url);
-  const safeUrlJs = JSON.stringify(link.original_url);
+  const safeUrlAttr = escapeAttr(link.originalUrl);
+  const safeUrlJs = JSON.stringify(link.originalUrl);
   const safeTitle = escapeText(title);
 
   return `<!DOCTYPE html>
@@ -93,10 +93,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const { id } = params;
+  const db = getDb();
 
-  const link = getDb()
-    .prepare('SELECT * FROM links WHERE id = ?')
-    .get(id) as LinkRow | undefined;
+  const link = db.select().from(links).where(eq(links.id, id)).get();
 
   if (!link) {
     return new NextResponse('Link nicht gefunden', {
@@ -107,9 +106,10 @@ export async function GET(
 
   const userAgent = req.headers.get('user-agent');
   if (!isCrawler(userAgent)) {
-    getDb()
-      .prepare('UPDATE links SET click_count = click_count + 1 WHERE id = ?')
-      .run(id);
+    db.update(links)
+      .set({ clickCount: sql`${links.clickCount} + 1` })
+      .where(eq(links.id, id))
+      .run();
   }
 
   return new NextResponse(buildHtml(link), {

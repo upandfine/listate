@@ -1,21 +1,50 @@
 import { NextResponse } from 'next/server';
-import { getDb, type LinkRow } from '@/lib/db';
+import { desc, eq, sql } from 'drizzle-orm';
+import { auth } from '@/auth';
+import { getDb } from '@/db';
+import { links, users } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  const links = getDb()
-    .prepare('SELECT * FROM links ORDER BY created_at DESC')
-    .all() as LinkRow[];
+export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 });
+  }
+
+  const isAdmin = session.user.role === 'admin';
+  const url = new URL(req.url);
+  const userFilter = url.searchParams.get('user') || undefined;
+
+  const where = isAdmin
+    ? userFilter
+      ? eq(links.userId, userFilter)
+      : sql`1 = 1`
+    : eq(links.userId, session.user.id);
+
+  const rows = getDb()
+    .select({
+      id: links.id,
+      original_url: links.originalUrl,
+      og_title: links.ogTitle,
+      og_description: links.ogDescription,
+      og_image: links.ogImage,
+      og_site_name: links.ogSiteName,
+      click_count: links.clickCount,
+      created_at: links.createdAt,
+      user_id: links.userId,
+      owner_email: users.email,
+    })
+    .from(links)
+    .leftJoin(users, eq(users.id, links.userId))
+    .where(where)
+    .orderBy(desc(links.createdAt))
+    .all();
 
   const baseUrl = getBaseUrl();
-
   return NextResponse.json(
-    links.map((l) => ({
-      ...l,
-      tracking_url: `${baseUrl}/t/${l.id}`,
-    }))
+    rows.map((l) => ({ ...l, tracking_url: `${baseUrl}/t/${l.id}` }))
   );
 }
