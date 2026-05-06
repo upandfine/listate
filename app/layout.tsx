@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import { auth, signOut } from '@/auth';
+import { BrandTile } from './components/BrandMark';
 import './globals.css';
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://listate.de';
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a0a',
+  themeColor: '#9b0a00',
   width: 'device-width',
   initialScale: 1,
 };
@@ -62,25 +63,9 @@ export default async function RootLayout({
           <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-6 py-4">
             <Link
               href="/"
-              className="flex items-center gap-2 text-lg font-semibold text-neutral-900"
+              className="flex items-center gap-2 text-lg font-semibold text-brand"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-neutral-900">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 32 32"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M9 16 H22 M17 11 L22 16 L17 21"
-                    stroke="#ffffff"
-                    strokeWidth="2.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                </svg>
-              </span>
+              <BrandTile className="h-7 w-7" />
               Listate
             </Link>
             <nav className="flex items-center gap-4 text-sm">
@@ -122,7 +107,7 @@ export default async function RootLayout({
                   <span className="hidden text-xs text-neutral-600 sm:inline">
                     {user.email}
                     {isAdmin && (
-                      <span className="ml-1 rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
+                      <span className="ml-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
                         Admin
                       </span>
                     )}
@@ -144,7 +129,7 @@ export default async function RootLayout({
               ) : (
                 <Link
                   href="/login"
-                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+                  className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-dark"
                 >
                   Anmelden
                 </Link>

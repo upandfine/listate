@@ -102,8 +102,8 @@ export function ConfirmButton({
               type="submit"
               className={
                 danger
-                  ? 'rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700'
-                  : 'rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-neutral-800'
+                  ? 'rounded-md bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-dark'
+                  : 'rounded-md bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-dark'
               }
             >
               {confirmLabel}

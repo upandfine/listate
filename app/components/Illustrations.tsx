@@ -9,7 +9,7 @@ export function FeaturePreviewIcon() {
       width="48"
       height="48"
       aria-hidden="true"
-      className="text-neutral-900"
+      className="text-brand"
     >
       <rect
         x="6"
@@ -70,7 +70,7 @@ export function FeatureCountIcon() {
       width="48"
       height="48"
       aria-hidden="true"
-      className="text-neutral-900"
+      className="text-brand"
     >
       <line
         x1="10"
@@ -104,7 +104,7 @@ export function FeaturePrivacyIcon() {
       width="48"
       height="48"
       aria-hidden="true"
-      className="text-neutral-900"
+      className="text-brand"
     >
       <path
         d="M32 8 L52 16 V32 C52 44 42 52 32 56 C22 52 12 44 12 32 V16 Z"
@@ -150,7 +150,7 @@ export function StepPasteUrl() {
           <div className="flex-1 truncate rounded-md border border-neutral-300 bg-white px-2 py-1.5 font-mono text-xs text-neutral-700">
             https://www.upandfine.de/blog/<span className="animate-pulse">|</span>
           </div>
-          <div className="rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white">
+          <div className="rounded-md bg-brand px-2.5 py-1.5 text-xs font-medium text-white">
             Erzeugen
           </div>
         </div>
@@ -183,7 +183,7 @@ export function StepShareInChat() {
   return (
     <BrowserFrame>
       <div className="space-y-2">
-        <div className="ml-auto max-w-[80%] rounded-2xl rounded-br-sm bg-neutral-900 px-3 py-1.5 text-xs text-white">
+        <div className="ml-auto max-w-[80%] rounded-2xl rounded-br-sm bg-brand px-3 py-1.5 text-xs text-white">
           listate.de/t/aB3xK9
         </div>
         <div className="ml-auto max-w-[85%] overflow-hidden rounded-lg border border-neutral-200 bg-white">

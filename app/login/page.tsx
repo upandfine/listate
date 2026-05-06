@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth, signIn } from '@/auth';
+import { BrandTile } from '../components/BrandMark';
 import {
   FeatureCountIcon,
   FeaturePreviewIcon,
@@ -26,19 +27,8 @@ export default async function LoginPage({
   return (
     <div className="mx-auto max-w-md space-y-10 py-6">
       <header className="space-y-3 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-900">
-          <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">
-            <path
-              d="M9 16 H22 M17 11 L22 16 L17 21"
-              stroke="#ffffff"
-              strokeWidth="2.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+        <BrandTile className="mx-auto h-14 w-14" />
+        <h1 className="text-2xl font-semibold tracking-tight text-brand">
           Bei Listate anmelden
         </h1>
         <p className="text-sm text-neutral-600">

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { auth } from '@/auth';
+import { BrandTile } from './components/BrandMark';
 import CreateLinkForm from './components/CreateLinkForm';
 import {
   FeatureCountIcon,
@@ -23,19 +24,10 @@ function LandingPage() {
     <div className="space-y-24 pb-12">
       {/* Hero */}
       <section className="space-y-6 pt-4 text-center sm:pt-12">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-900">
-          <svg width="36" height="36" viewBox="0 0 32 32" aria-hidden="true">
-            <path
-              d="M9 16 H22 M17 11 L22 16 L17 21"
-              stroke="#ffffff"
-              strokeWidth="2.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          </svg>
+        <div className="mx-auto">
+          <BrandTile className="mx-auto h-20 w-20" />
         </div>
-        <h1 className="mx-auto max-w-3xl text-balance text-4xl font-semibold tracking-tight text-neutral-900 sm:text-5xl">
+        <h1 className="mx-auto max-w-3xl text-balance text-4xl font-semibold tracking-tight text-brand sm:text-5xl">
           Tracking-Links mit echter Vorschau in WhatsApp, Slack &amp; Co.
         </h1>
         <p className="mx-auto max-w-2xl text-pretty text-lg text-neutral-600">
@@ -45,7 +37,7 @@ function LandingPage() {
         <div className="flex flex-col items-center gap-3 pt-2 sm:flex-row sm:justify-center">
           <Link
             href="/login"
-            className="inline-flex items-center justify-center rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-neutral-800"
+            className="inline-flex items-center justify-center rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark"
           >
             Mit Google anmelden &amp; loslegen
           </Link>
@@ -61,7 +53,7 @@ function LandingPage() {
       {/* Was leistet das Tool */}
       <section className="space-y-8">
         <header className="space-y-2 text-center">
-          <h2 className="text-2xl font-semibold text-neutral-900 sm:text-3xl">
+          <h2 className="text-2xl font-semibold text-brand sm:text-3xl">
             Was Listate leistet
           </h2>
           <p className="mx-auto max-w-xl text-neutral-600">
@@ -91,7 +83,7 @@ function LandingPage() {
       {/* Für wen */}
       <section className="rounded-xl border border-neutral-200 bg-white p-8 sm:p-10">
         <header className="space-y-2">
-          <h2 className="text-2xl font-semibold text-neutral-900 sm:text-3xl">
+          <h2 className="text-2xl font-semibold text-brand sm:text-3xl">
             Für wen ist Listate gemacht?
           </h2>
           <p className="text-neutral-600">
@@ -122,7 +114,7 @@ function LandingPage() {
       {/* So funktioniert's */}
       <section id="funktion" className="space-y-10 scroll-mt-12">
         <header className="space-y-2 text-center">
-          <h2 className="text-2xl font-semibold text-neutral-900 sm:text-3xl">
+          <h2 className="text-2xl font-semibold text-brand sm:text-3xl">
             So funktioniert's
           </h2>
           <p className="mx-auto max-w-xl text-neutral-600">
@@ -156,17 +148,17 @@ function LandingPage() {
       </section>
 
       {/* Closing CTA */}
-      <section className="rounded-xl bg-neutral-900 p-10 text-center text-white sm:p-14">
+      <section className="rounded-xl bg-brand p-10 text-center text-white sm:p-14">
         <h2 className="text-2xl font-semibold sm:text-3xl">
           Bereit, deine Links sichtbar zu machen?
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-neutral-300">
+        <p className="mx-auto mt-3 max-w-xl text-white/80">
           Anmeldung mit Google in zehn Sekunden. Keine Kreditkarte, kein
           Newsletter-Zwang.
         </p>
         <Link
           href="/login"
-          className="mt-6 inline-flex items-center justify-center rounded-md bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 shadow-sm transition hover:bg-neutral-100"
+          className="mt-6 inline-flex items-center justify-center rounded-md bg-white px-5 py-2.5 text-sm font-medium text-brand shadow-sm transition hover:bg-neutral-100"
         >
           Mit Google anmelden
         </Link>
@@ -187,7 +179,7 @@ function FeatureCard({
   return (
     <div className="space-y-3 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
       <div>{icon}</div>
-      <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
+      <h3 className="text-lg font-semibold text-brand">{title}</h3>
       <p className="text-sm leading-relaxed text-neutral-600">{text}</p>
     </div>
   );
@@ -201,7 +193,7 @@ function Bullet({ children }: { children: React.ReactNode }) {
         width="20"
         height="20"
         aria-hidden="true"
-        className="mt-0.5 flex-shrink-0 text-neutral-900"
+        className="mt-0.5 flex-shrink-0 text-accent"
       >
         <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" />
         <path
@@ -230,10 +222,10 @@ function Step({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
           {number}
         </span>
-        <h3 className="text-base font-semibold text-neutral-900">{title}</h3>
+        <h3 className="text-base font-semibold text-brand">{title}</h3>
       </div>
       <div className="space-y-3">{children}</div>
     </div>

@@ -57,7 +57,7 @@ export default async function BlockedHostsPage() {
                 type="text"
                 required
                 placeholder="example.com"
-                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
               <p className="text-xs text-neutral-500">
                 Eingabe wird auf den reinen Host normalisiert.
@@ -75,7 +75,7 @@ export default async function BlockedHostsPage() {
                 name="reason"
                 type="text"
                 placeholder="z.&nbsp;B. Spam, Phishing, auf Wunsch"
-                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
               <p className="text-xs text-neutral-500">
                 Erscheint Nutzern in der Fehlermeldung beim Erstellen.
@@ -87,7 +87,7 @@ export default async function BlockedHostsPage() {
             <input
               type="checkbox"
               name="alsoDelete"
-              className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+              className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-brand"
             />
             <span>
               Bestehende Links zu diesem Host gleich mitlöschen.
@@ -100,7 +100,7 @@ export default async function BlockedHostsPage() {
           <div>
             <button
               type="submit"
-              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-neutral-800"
+              className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-dark"
             >
               Host blockieren
             </button>

@@ -78,13 +78,13 @@ export default function CreateLinkForm() {
             placeholder="https://example.com/artikel"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+            className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             disabled={loading}
           />
           <button
             type="submit"
             disabled={loading || !url.trim()}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? 'Erzeuge…' : 'Erzeugen'}
           </button>
