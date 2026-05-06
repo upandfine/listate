@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Datenschutz – LinkTracker',
+  title: 'Datenschutz – Listate',
   description: 'Datenschutzerklärung des Tracking-Link-Dienstes',
 };
 

@@ -1,9 +1,14 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth, signIn } from '@/auth';
+import {
+  FeatureCountIcon,
+  FeaturePreviewIcon,
+  FeaturePrivacyIcon,
+} from '../components/Illustrations';
 
 export const metadata: Metadata = {
-  title: 'Anmelden – LinkTracker',
+  title: 'Anmelden',
 };
 
 export default async function LoginPage({
@@ -19,12 +24,26 @@ export default async function LoginPage({
   const { callbackUrl } = await searchParams;
 
   return (
-    <div className="mx-auto max-w-sm space-y-6 py-10">
-      <header className="space-y-2 text-center">
-        <h1 className="text-2xl font-semibold">Anmelden</h1>
+    <div className="mx-auto max-w-md space-y-10 py-6">
+      <header className="space-y-3 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-900">
+          <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">
+            <path
+              d="M9 16 H22 M17 11 L22 16 L17 21"
+              stroke="#ffffff"
+              strokeWidth="2.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+          Bei Listate anmelden
+        </h1>
         <p className="text-sm text-neutral-600">
-          Bitte mit deinem Google-Konto anmelden, um Tracking-Links zu
-          erstellen und das Dashboard zu öffnen.
+          Tracking-Links mit echter Vorschau erstellen, Klicks zählen, im
+          Dashboard auswerten.
         </p>
       </header>
 
@@ -45,11 +64,41 @@ export default async function LoginPage({
         </button>
       </form>
 
+      <ul className="space-y-3 text-sm text-neutral-700">
+        <MiniFeature icon={<FeaturePreviewIcon />}>
+          <strong>Vorschau bleibt erhalten</strong> — Empfänger sehen die
+          echte Open-Graph-Karte.
+        </MiniFeature>
+        <MiniFeature icon={<FeatureCountIcon />}>
+          <strong>Klicks werden gezählt</strong> — Bots und Crawler werden
+          herausgefiltert.
+        </MiniFeature>
+        <MiniFeature icon={<FeaturePrivacyIcon />}>
+          <strong>Privacy-freundlich</strong> — keine Cookies, keine
+          IP-Speicherung in der App.
+        </MiniFeature>
+      </ul>
+
       <p className="text-center text-xs text-neutral-500">
         Beim Anmelden akzeptierst du die Verarbeitung deiner Konto-Daten
         gemäß <a href="/datenschutz" className="underline">Datenschutzerklärung</a>.
       </p>
     </div>
+  );
+}
+
+function MiniFeature({
+  icon,
+  children,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="flex items-start gap-3 rounded-lg border border-neutral-200 bg-white p-3">
+      <div className="flex-shrink-0 [&_svg]:h-7 [&_svg]:w-7">{icon}</div>
+      <span className="text-sm leading-relaxed text-neutral-700">{children}</span>
+    </li>
   );
 }
 

@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       fetchOptions: {
         headers: {
           'User-Agent':
-            'Mozilla/5.0 (compatible; LinkTrackerBot/1.0; +https://github.com/) AppleWebKit/537.36',
+            'Mozilla/5.0 (compatible; ListateBot/1.0; +https://listate.de/) AppleWebKit/537.36',
         },
       },
     });

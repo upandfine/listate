@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Impressum – LinkTracker',
+  title: 'Impressum – Listate',
   description: 'Impressum gemäß § 5 DDG',
 };
 

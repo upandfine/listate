@@ -12,13 +12,21 @@ export default {
       const { pathname } = request.nextUrl;
 
       const isPublic =
+        pathname === '/' ||
         pathname.startsWith('/t/') ||
         pathname.startsWith('/datenschutz') ||
         pathname.startsWith('/impressum') ||
         pathname === '/login' ||
         pathname.startsWith('/api/auth') ||
         pathname.startsWith('/_next/') ||
-        pathname === '/favicon.ico';
+        pathname === '/favicon.ico' ||
+        pathname === '/icon.svg' ||
+        pathname === '/apple-icon' ||
+        pathname === '/opengraph-image' ||
+        pathname === '/twitter-image' ||
+        pathname === '/robots.txt' ||
+        pathname === '/sitemap.xml' ||
+        pathname === '/manifest.webmanifest';
 
       if (isPublic) return true;
       return isLoggedIn;

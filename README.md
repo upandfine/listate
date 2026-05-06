@@ -1,4 +1,4 @@
-# LinkTracker
+# Listate
 
 Selbst gehostetes Link-Tracking-Tool: URL eingeben → Kurzlink mit
 Open-Graph-Vorschau erhalten. Beim Aufruf wird ein Klick gezählt und
@@ -35,11 +35,11 @@ App läuft auf <http://localhost:3000>. Die SQLite-Datei wird unter
 ## Docker
 
 ```bash
-docker build -t linktracker .
+docker build -t listate .
 docker run -p 3000:3000 \
-  -v linktracker-data:/app/data \
+  -v listate-data:/app/data \
   -e NEXT_PUBLIC_BASE_URL=http://localhost:3000 \
-  linktracker
+  listate
 ```
 
 ## Sliplane
