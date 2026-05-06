@@ -147,8 +147,13 @@ export function StepPasteUrl() {
           Original-URL
         </div>
         <div className="flex gap-1.5">
-          <div className="flex-1 truncate rounded-md border border-neutral-300 bg-white px-2 py-1.5 font-mono text-xs text-neutral-700">
-            https://www.upandfine.de/blog/<span className="animate-pulse">|</span>
+          <div className="flex flex-1 overflow-hidden rounded-md border border-neutral-300 bg-white">
+            <span className="inline-flex select-none items-center bg-neutral-100 px-1.5 font-mono text-xs text-neutral-500">
+              https://
+            </span>
+            <div className="flex-1 truncate px-2 py-1.5 font-mono text-xs text-neutral-700">
+              www.upandfine.de/blog/<span className="animate-pulse">|</span>
+            </div>
           </div>
           <div className="rounded-md bg-brand px-2.5 py-1.5 text-xs font-medium text-white">
             Erzeugen

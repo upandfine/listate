@@ -14,14 +14,24 @@ interface CreateResponse {
 }
 
 export default function CreateLinkForm() {
-  const [url, setUrl] = useState('');
+  // Nur der Teil hinter https:// – z. B. "www.upandfine.de/blog".
+  const [host, setHost] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CreateResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Eingabe normalisieren: mitkopiertes http(s):// und führende Whitespace
+  // entfernen, damit der Präfix nicht doppelt erscheint.
+  function stripScheme(value: string): string {
+    return value.replace(/^\s*https?:\/\//i, '');
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const trimmed = host.trim();
+    if (!trimmed) return;
+
     setError(null);
     setResult(null);
     setCopied(false);
@@ -31,14 +41,14 @@ export default function CreateLinkForm() {
       const res = await fetch('/api/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: `https://${trimmed}` }),
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Fehler beim Erstellen');
       }
       setResult(data);
-      setUrl('');
+      setHost('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
     } finally {
@@ -70,20 +80,36 @@ export default function CreateLinkForm() {
         <label htmlFor="url" className="block text-sm font-medium">
           Original-URL
         </label>
-        <div className="flex gap-2">
-          <input
-            id="url"
-            type="url"
-            required
-            placeholder="https://example.com/artikel"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-            disabled={loading}
-          />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-1 rounded-md shadow-sm focus-within:ring-1 focus-within:ring-brand">
+            <span className="inline-flex select-none items-center rounded-l-md border border-r-0 border-neutral-300 bg-neutral-100 px-3 font-mono text-sm text-neutral-500">
+              https://
+            </span>
+            <input
+              id="url"
+              type="text"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              required
+              placeholder="example.com/artikel"
+              value={host}
+              onChange={(e) => setHost(stripScheme(e.target.value))}
+              onPaste={(e) => {
+                const pasted = e.clipboardData.getData('text');
+                if (/^\s*https?:\/\//i.test(pasted)) {
+                  e.preventDefault();
+                  setHost(stripScheme(pasted));
+                }
+              }}
+              className="flex-1 rounded-r-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none"
+              disabled={loading}
+            />
+          </div>
           <button
             type="submit"
-            disabled={loading || !url.trim()}
+            disabled={loading || !host.trim()}
             className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? 'Erzeuge…' : 'Erzeugen'}

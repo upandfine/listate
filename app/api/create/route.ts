@@ -49,9 +49,9 @@ export async function POST(req: NextRequest) {
   }
 
   const rawUrl = typeof body.url === 'string' ? body.url.trim() : '';
-  if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) {
+  if (!rawUrl || !/^https:\/\//i.test(rawUrl)) {
     return NextResponse.json(
-      { error: 'URL muss mit http:// oder https:// beginnen' },
+      { error: 'Nur https-URLs sind erlaubt.' },
       { status: 400 }
     );
   }
