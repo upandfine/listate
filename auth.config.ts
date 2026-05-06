@@ -9,6 +9,7 @@ export default {
   callbacks: {
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;
+      const isAdmin = auth?.user?.role === 'admin';
       const { pathname } = request.nextUrl;
 
       const isPublic =
@@ -29,6 +30,13 @@ export default {
         pathname === '/manifest.webmanifest';
 
       if (isPublic) return true;
+
+      // /admin nur für Admins; Nicht-Admins werden auf /login geschickt,
+      // wo sie sich ggf. mit Admin-Account einloggen können.
+      if (pathname.startsWith('/admin')) {
+        return isLoggedIn && isAdmin;
+      }
+
       return isLoggedIn;
     },
     async session({ session, token }) {

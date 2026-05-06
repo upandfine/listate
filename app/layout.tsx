@@ -98,6 +98,14 @@ export default async function RootLayout({
                   >
                     Dashboard
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin/blocked"
+                      className="text-neutral-600 hover:text-neutral-900"
+                    >
+                      Blockliste
+                    </Link>
+                  )}
                 </>
               )}
 

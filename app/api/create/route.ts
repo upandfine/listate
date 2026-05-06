@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ogs from 'open-graph-scraper';
+import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { getDb } from '@/db';
-import { links } from '@/db/schema';
+import { blockedHosts, links } from '@/db/schema';
 import { generateId } from '@/lib/generateId';
 import { getBaseUrl } from '@/lib/baseUrl';
+import { normalizeHost } from '@/lib/host';
 
 export const runtime = 'nodejs';
 
@@ -61,6 +63,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'URL ist ungültig' }, { status: 400 });
   }
   const url = parsed.toString();
+
+  const host = normalizeHost(parsed.hostname);
+  const blocked = getDb()
+    .select()
+    .from(blockedHosts)
+    .where(eq(blockedHosts.host, host))
+    .get();
+  if (blocked) {
+    return NextResponse.json(
+      {
+        error: blocked.reason
+          ? `Diese Domain ist gesperrt: ${blocked.reason}`
+          : 'Diese Domain ist gesperrt.',
+      },
+      { status: 403 }
+    );
+  }
 
   let title: string | null = null;
   let description: string | null = null;

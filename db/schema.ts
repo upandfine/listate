@@ -80,5 +80,17 @@ export const links = sqliteTable('links', {
     .default(sql`(datetime('now'))`),
 });
 
+export const blockedHosts = sqliteTable('blocked_hosts', {
+  host: text('host').primaryKey(),
+  reason: text('reason'),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  createdBy: text('created_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+});
+
 export type User = typeof users.$inferSelect;
 export type Link = typeof links.$inferSelect;
+export type BlockedHost = typeof blockedHosts.$inferSelect;
