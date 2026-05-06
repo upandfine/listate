@@ -58,7 +58,7 @@ export default async function RootLayout({
 
   return (
     <html lang="de">
-      <body>
+      <body className="flex min-h-screen flex-col">
         <header className="border-b border-neutral-200 bg-white">
           <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-6 py-4">
             <Link
@@ -137,7 +137,9 @@ export default async function RootLayout({
             </nav>
           </div>
         </header>
-        <main className="mx-auto max-w-4xl px-6 py-10">{children}</main>
+        <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
+          {children}
+        </main>
         <footer className="border-t border-neutral-200 bg-white">
           <div className="mx-auto flex max-w-4xl items-center justify-end gap-4 px-6 py-4 text-xs text-neutral-500">
             <Link href="/impressum" className="hover:text-neutral-900">
