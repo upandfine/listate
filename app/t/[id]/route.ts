@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db, { type LinkRow } from '@/lib/db';
+import { getDb, type LinkRow } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -94,7 +94,7 @@ export async function GET(
 ) {
   const { id } = params;
 
-  const link = db
+  const link = getDb()
     .prepare('SELECT * FROM links WHERE id = ?')
     .get(id) as LinkRow | undefined;
 
@@ -107,9 +107,9 @@ export async function GET(
 
   const userAgent = req.headers.get('user-agent');
   if (!isCrawler(userAgent)) {
-    db.prepare(
-      'UPDATE links SET click_count = click_count + 1 WHERE id = ?'
-    ).run(id);
+    getDb()
+      .prepare('UPDATE links SET click_count = click_count + 1 WHERE id = ?')
+      .run(id);
   }
 
   return new NextResponse(buildHtml(link), {

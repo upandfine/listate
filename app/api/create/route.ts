@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ogs from 'open-graph-scraper';
-import db from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { generateId } from '@/lib/generateId';
 import { getBaseUrl } from '@/lib/baseUrl';
 
@@ -89,10 +89,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  db.prepare(
-    `INSERT INTO links (id, original_url, og_title, og_description, og_image, og_site_name)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(id, url, title, description, image, siteName);
+  getDb()
+    .prepare(
+      `INSERT INTO links (id, original_url, og_title, og_description, og_image, og_site_name)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(id, url, title, description, image, siteName);
 
   const baseUrl = getBaseUrl();
   return NextResponse.json({
