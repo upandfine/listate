@@ -11,8 +11,11 @@ Implementierung jeweils nochmal abgestimmt.
 verschwinden aus dem Dashboard, ohne dass sie gelöscht werden.
 
 ### Funktionsweise
-- Beim Erstellen optionaler Ablauf wählbar: Presets **2 / 5 / 7 Tage** plus
-  „kein Ablauf" (Default).
+- Beim Erstellen optionaler Ablauf wählbar. Presets:
+  - **Tage:** 2, 5, 7
+  - **Wochen:** 2, 4
+  - **Monate:** 1, 3
+  - „Kein Ablauf" (Default)
 - Nach Ablauf bleibt der Link in der DB, ist aber **nicht mehr aktiv**:
   - `/t/[id]` liefert eine eigene **„Link abgelaufen"-Seite** mit HTTP 410 Gone.
   - Kein Redirect, kein Klick-Increment.
@@ -24,9 +27,10 @@ verschwinden aus dem Dashboard, ohne dass sie gelöscht werden.
 ### Schema-Skizze
 - Neue Spalte auf `links`: `expires_at TEXT NULL`.
 
-### Offene Punkte
-- Zusätzlich freies Datumsfeld neben den Presets, oder reichen die Presets?
-- UI: kompakter Selector im `CreateLinkForm` (Radios + „kein Ablauf"-Default).
+### UI-Hinweis
+- Im `CreateLinkForm` ein kompakter Selector unter dem URL-Feld.
+  Default: „Kein Ablauf". Sieben Presets in einer kompakten Zeile,
+  ggf. nach Einheit (Tage/Wochen/Monate) gruppiert.
 
 ---
 
@@ -62,11 +66,12 @@ Zur Inspiration für sinnvolle Default-Vorlagen oder als Hilfe-Texte:
 - Neue Tabelle `templates`: `id`, `label`, `original_url`, `description`,
   `created_at`, `created_by`.
 
-### Offene Punkte
-- Rein admin-pflegbar, oder sollen User auch eigene private Vorlagen pinnen
-  können? (Default-Vermutung: zunächst nur Admin – minimaler Scope.)
-- Soll beim Klick auf „Link erzeugen" die OG-Vorschau wie beim normalen
-  Form geholt werden? (Vermutung: ja, gleicher Flow.)
+### Entscheidungen
+- **Nur Admin** pflegt Vorlagen (vorerst). User-eigene Pins kommen nicht
+  in den ersten Wurf.
+- **Vorschau analog zum normalen Erstell-Flow:** Beim Klick auf „Link
+  erzeugen" wird OG geholt und gezeigt – derselbe Code-Pfad wie heute
+  beim manuellen Eintragen.
 
 ---
 
