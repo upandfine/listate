@@ -2,9 +2,14 @@
 
 import { eq, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { getDb } from '@/db';
-import { blockedHosts, links } from '@/db/schema';
+import { blockedHosts, links, templates } from '@/db/schema';
+import {
+  createTrackingLink,
+  TrackingLinkError,
+} from '@/lib/createTrackingLink';
 import { normalizeHost } from '@/lib/host';
 
 async function requireUser() {
@@ -99,4 +104,80 @@ export async function unblockHost(formData: FormData) {
 
   getDb().delete(blockedHosts).where(eq(blockedHosts.host, host)).run();
   revalidatePath('/admin/blocked');
+}
+
+export async function createTemplate(formData: FormData) {
+  const user = await requireAdmin();
+
+  const label = String(formData.get('label') ?? '').trim();
+  const rawUrl = String(formData.get('url') ?? '').trim();
+  const description =
+    String(formData.get('description') ?? '').trim() || null;
+
+  if (!label) throw new Error('Bezeichnung fehlt.');
+  if (!/^https:\/\//i.test(rawUrl)) {
+    throw new Error('URL muss mit https:// beginnen.');
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error('URL ist ungültig.');
+  }
+
+  getDb()
+    .insert(templates)
+    .values({
+      label,
+      originalUrl: parsed.toString(),
+      description,
+      createdBy: user.id,
+    })
+    .run();
+
+  revalidatePath('/admin/templates');
+  revalidatePath('/templates');
+}
+
+export async function deleteTemplate(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get('id') ?? '');
+  if (!id) return;
+
+  getDb().delete(templates).where(eq(templates.id, id)).run();
+  revalidatePath('/admin/templates');
+  revalidatePath('/templates');
+}
+
+export async function useTemplate(formData: FormData) {
+  const user = await requireUser();
+  const templateId = String(formData.get('templateId') ?? '');
+  if (!templateId) throw new Error('Template-ID fehlt.');
+
+  const template = getDb()
+    .select()
+    .from(templates)
+    .where(eq(templates.id, templateId))
+    .get();
+  if (!template) throw new Error('Vorlage nicht gefunden.');
+
+  let created;
+  try {
+    created = await createTrackingLink({
+      rawUrl: template.originalUrl,
+      userId: user.id,
+      expiresAt: null,
+    });
+  } catch (err) {
+    if (err instanceof TrackingLinkError) {
+      throw new Error(err.message);
+    }
+    throw err;
+  }
+
+  revalidatePath('/dashboard');
+  revalidatePath('/templates');
+  // Redirect zur /templates mit just-created-Marker, damit Erfolgs-Card oben erscheint.
+  redirect(`/templates?created=${created.id}`);
 }

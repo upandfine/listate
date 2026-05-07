@@ -78,6 +78,12 @@ export default async function RootLayout({
                     Neu
                   </Link>
                   <Link
+                    href="/templates"
+                    className="text-neutral-600 hover:text-neutral-900"
+                  >
+                    Vorlagen
+                  </Link>
+                  <Link
                     href="/dashboard"
                     className="text-neutral-600 hover:text-neutral-900"
                   >

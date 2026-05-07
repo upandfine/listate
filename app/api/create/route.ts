@@ -1,34 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ogs from 'open-graph-scraper';
-import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { getDb } from '@/db';
-import { blockedHosts, links } from '@/db/schema';
-import { generateId } from '@/lib/generateId';
+import {
+  createTrackingLink,
+  TrackingLinkError,
+} from '@/lib/createTrackingLink';
 import { getBaseUrl } from '@/lib/baseUrl';
-import { normalizeHost } from '@/lib/host';
 import { ttlToExpiresAt } from '@/lib/ttl';
 
 export const runtime = 'nodejs';
-
-interface OgImage {
-  url?: string;
-}
-
-function pickImage(image: unknown): string | null {
-  if (!image) return null;
-  if (typeof image === 'string') return image;
-  if (Array.isArray(image)) {
-    const first = image[0] as OgImage | string | undefined;
-    if (!first) return null;
-    if (typeof first === 'string') return first;
-    return first.url ?? null;
-  }
-  if (typeof image === 'object' && 'url' in (image as OgImage)) {
-    return (image as OgImage).url ?? null;
-  }
-  return null;
-}
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -49,107 +28,35 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const rawUrl = typeof body.url === 'string' ? body.url : '';
   const expiresAt = ttlToExpiresAt(body.ttl);
 
-  const rawUrl = typeof body.url === 'string' ? body.url.trim() : '';
-  if (!rawUrl || !/^https:\/\//i.test(rawUrl)) {
-    return NextResponse.json(
-      { error: 'Nur https-URLs sind erlaubt.' },
-      { status: 400 }
-    );
-  }
-
-  let parsed: URL;
   try {
-    parsed = new URL(rawUrl);
-  } catch {
-    return NextResponse.json({ error: 'URL ist ungültig' }, { status: 400 });
-  }
-  const url = parsed.toString();
+    const created = await createTrackingLink({
+      rawUrl,
+      userId: session.user.id,
+      expiresAt,
+    });
 
-  const host = normalizeHost(parsed.hostname);
-  const blocked = getDb()
-    .select()
-    .from(blockedHosts)
-    .where(eq(blockedHosts.host, host))
-    .get();
-  if (blocked) {
-    return NextResponse.json(
-      {
-        error: blocked.reason
-          ? `Diese Domain ist gesperrt: ${blocked.reason}`
-          : 'Diese Domain ist gesperrt.',
-      },
-      { status: 403 }
-    );
-  }
-
-  let title: string | null = null;
-  let description: string | null = null;
-  let image: string | null = null;
-  let siteName: string | null = null;
-
-  try {
-    const { result, error } = await ogs({
-      url,
-      timeout: 5000,
-      fetchOptions: {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (compatible; ListateBot/1.0; +https://listate.de/) AppleWebKit/537.36',
-        },
+    return NextResponse.json({
+      trackingUrl: `${getBaseUrl()}/t/${created.id}`,
+      id: created.id,
+      expiresAt: created.expiresAt,
+      og: {
+        title: created.og.title,
+        description: created.og.description,
+        image: created.og.image,
+        siteName: created.og.siteName,
       },
     });
-    if (!error && result) {
-      title = result.ogTitle ?? result.twitterTitle ?? null;
-      description =
-        result.ogDescription ?? result.twitterDescription ?? null;
-      image =
-        pickImage(result.ogImage) ?? pickImage(result.twitterImage) ?? null;
-      siteName = result.ogSiteName ?? null;
-    }
-  } catch {
-    // OG-Scraping ist optional; Link wird trotzdem gespeichert
-  }
-
-  let id: string;
-  try {
-    id = generateId();
-  } catch {
-    return NextResponse.json(
-      { error: 'ID-Generierung fehlgeschlagen, bitte erneut versuchen' },
-      { status: 500 }
-    );
-  }
-
-  try {
-    getDb()
-      .insert(links)
-      .values({
-        id,
-        userId: session.user.id,
-        originalUrl: url,
-        ogTitle: title,
-        ogDescription: description,
-        ogImage: image,
-        ogSiteName: siteName,
-        expiresAt,
-      })
-      .run();
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unbekannter DB-Fehler';
-    console.error('[api/create] insert failed:', err);
+    if (err instanceof TrackingLinkError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    console.error('[api/create] unexpected error:', err);
     return NextResponse.json(
-      { error: `Speichern fehlgeschlagen: ${message}` },
+      { error: 'Unbekannter Fehler' },
       { status: 500 }
     );
   }
-
-  const baseUrl = getBaseUrl();
-  return NextResponse.json({
-    trackingUrl: `${baseUrl}/t/${id}`,
-    id,
-    expiresAt,
-    og: { title, description, image, siteName },
-  });
 }

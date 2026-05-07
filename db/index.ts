@@ -82,6 +82,15 @@ function bootstrap(sqlite: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       created_by TEXT REFERENCES user(id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS templates (
+      id           TEXT PRIMARY KEY,
+      label        TEXT NOT NULL,
+      original_url TEXT NOT NULL,
+      description  TEXT,
+      created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+      created_by   TEXT REFERENCES user(id) ON DELETE SET NULL
+    );
   `);
 
   // Idempotente Schema-Migrationen für bestehende Datenbanken,

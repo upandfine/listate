@@ -81,6 +81,21 @@ export const links = sqliteTable('links', {
   expiresAt: text('expires_at'),
 });
 
+export const templates = sqliteTable('templates', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  label: text('label').notNull(),
+  originalUrl: text('original_url').notNull(),
+  description: text('description'),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  createdBy: text('created_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+});
+
 export const blockedHosts = sqliteTable('blocked_hosts', {
   host: text('host').primaryKey(),
   reason: text('reason'),
@@ -95,3 +110,4 @@ export const blockedHosts = sqliteTable('blocked_hosts', {
 export type User = typeof users.$inferSelect;
 export type Link = typeof links.$inferSelect;
 export type BlockedHost = typeof blockedHosts.$inferSelect;
+export type Template = typeof templates.$inferSelect;
