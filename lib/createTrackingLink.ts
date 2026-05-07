@@ -6,6 +6,8 @@ import { generateId } from '@/lib/generateId';
 import { normalizeHost } from '@/lib/host';
 import { isAdultHost } from '@/lib/adultFilter';
 import { checkSafeBrowsing, describeThreats } from '@/lib/safeBrowsing';
+import { normalizeSlug, validateSlug } from '@/lib/slug';
+import { normalizeTags, tagsToString } from '@/lib/tags';
 
 interface OgImage {
   url?: string;
@@ -38,8 +40,10 @@ export class TrackingLinkError extends Error {
 
 export interface CreateTrackingLinkResult {
   id: string;
+  slug: string | null;
   url: string;
   expiresAt: string | null;
+  tags: string[];
   og: {
     title: string | null;
     description: string | null;
@@ -56,11 +60,38 @@ export async function createTrackingLink(params: {
   rawUrl: string;
   userId: string;
   expiresAt?: string | null;
+  slug?: string | null;
+  tags?: string | null;
 }): Promise<CreateTrackingLinkResult> {
   const rawUrl = params.rawUrl.trim();
   if (!rawUrl || !/^https:\/\//i.test(rawUrl)) {
     throw new TrackingLinkError('Nur https-URLs sind erlaubt.', 400);
   }
+
+  // Slug-Validierung
+  let slug: string | null = null;
+  if (params.slug) {
+    const candidate = normalizeSlug(params.slug);
+    if (candidate) {
+      const result = validateSlug(candidate);
+      if (!result.ok) throw new TrackingLinkError(result.error, 400);
+      const existing = getDb()
+        .select({ id: links.id })
+        .from(links)
+        .where(eq(links.slug, candidate))
+        .get();
+      if (existing) {
+        throw new TrackingLinkError(
+          `Slug „${candidate}" ist bereits vergeben.`,
+          400
+        );
+      }
+      slug = candidate;
+    }
+  }
+
+  // Tag-Normalisierung
+  const tags = params.tags ? normalizeTags(params.tags) : [];
 
   let parsed: URL;
   try {
@@ -156,6 +187,8 @@ export async function createTrackingLink(params: {
         ogImage: image,
         ogSiteName: siteName,
         expiresAt: params.expiresAt ?? null,
+        slug,
+        tags: tagsToString(tags),
       })
       .run();
   } catch (err) {
@@ -166,8 +199,10 @@ export async function createTrackingLink(params: {
 
   return {
     id,
+    slug,
     url,
     expiresAt: params.expiresAt ?? null,
+    tags,
     og: { title, description, image, siteName },
   };
 }

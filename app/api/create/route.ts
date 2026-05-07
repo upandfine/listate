@@ -18,7 +18,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { url?: unknown; ttl?: unknown };
+  let body: {
+    url?: unknown;
+    ttl?: unknown;
+    slug?: unknown;
+    tags?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -30,18 +35,25 @@ export async function POST(req: NextRequest) {
 
   const rawUrl = typeof body.url === 'string' ? body.url : '';
   const expiresAt = ttlToExpiresAt(body.ttl);
+  const slug = typeof body.slug === 'string' ? body.slug : null;
+  const tags = typeof body.tags === 'string' ? body.tags : null;
 
   try {
     const created = await createTrackingLink({
       rawUrl,
       userId: session.user.id,
       expiresAt,
+      slug,
+      tags,
     });
 
+    const trackingPath = created.slug ?? created.id;
     return NextResponse.json({
-      trackingUrl: `${getBaseUrl()}/t/${created.id}`,
+      trackingUrl: `${getBaseUrl()}/t/${trackingPath}`,
       id: created.id,
+      slug: created.slug,
       expiresAt: created.expiresAt,
+      tags: created.tags,
       og: {
         title: created.og.title,
         description: created.og.description,

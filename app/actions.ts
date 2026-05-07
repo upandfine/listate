@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { getDb } from '@/db';
-import { blockedHosts, links, templates } from '@/db/schema';
+import { blockedHosts, links, templates, users } from '@/db/schema';
 import {
   createTrackingLink,
   TrackingLinkError,
@@ -108,6 +108,16 @@ export async function unblockHost(formData: FormData) {
 
   getDb().delete(blockedHosts).where(eq(blockedHosts.host, host)).run();
   revalidatePath('/admin/blocked');
+}
+
+export async function deleteAccount() {
+  const user = await requireUser();
+  // Cascade-Delete: alle Links + accounts + sessions des Users werden
+  // durch ON DELETE CASCADE in den FK-Constraints automatisch entfernt.
+  getDb().delete(users).where(eq(users.id, user.id)).run();
+  // signOut löscht das JWT-Cookie und redirected.
+  const { signOut } = await import('@/auth');
+  await signOut({ redirectTo: '/login' });
 }
 
 export async function createTemplate(formData: FormData) {

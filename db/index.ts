@@ -73,8 +73,20 @@ function bootstrap(sqlite: Database.Database) {
       og_site_name   TEXT,
       click_count    INTEGER NOT NULL DEFAULT 0,
       created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-      expires_at     TEXT
+      expires_at     TEXT,
+      slug           TEXT UNIQUE,
+      tags           TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS clicks (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      link_id     TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+      clicked_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_clicks_link_id ON clicks(link_id);
+    CREATE INDEX IF NOT EXISTS idx_clicks_clicked_at ON clicks(clicked_at);
+    CREATE INDEX IF NOT EXISTS idx_links_slug ON links(slug);
 
     CREATE TABLE IF NOT EXISTS blocked_hosts (
       host       TEXT PRIMARY KEY,
@@ -98,6 +110,20 @@ function bootstrap(sqlite: Database.Database) {
   // bei denen CREATE TABLE IF NOT EXISTS keine neuen Spalten ergänzt.
   ensureColumn(sqlite, 'links', 'expires_at', 'TEXT');
   ensureColumn(sqlite, 'templates', 'url_pattern', 'TEXT');
+  ensureColumn(sqlite, 'links', 'slug', 'TEXT');
+  ensureColumn(sqlite, 'links', 'tags', 'TEXT');
+
+  // Falls die Tabellen oder Indexe noch fehlen (alte DBs):
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS clicks (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      link_id     TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+      clicked_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_links_slug_unique ON links(slug) WHERE slug IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_clicks_link_id ON clicks(link_id);
+    CREATE INDEX IF NOT EXISTS idx_clicks_clicked_at ON clicks(clicked_at);
+  `);
 }
 
 function ensureColumn(

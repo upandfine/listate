@@ -40,6 +40,7 @@ export function Header({ user }: { user: HeaderUser | null }) {
         ...(isAdmin
           ? [{ href: '/admin/blocked', label: 'Blockliste' }]
           : []),
+        { href: '/settings', label: 'Einstellungen' },
       ]
     : [];
 

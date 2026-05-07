@@ -8,7 +8,9 @@ import { ShareButton } from './ShareButton';
 interface CreateResponse {
   trackingUrl: string;
   id: string;
+  slug: string | null;
   expiresAt: string | null;
+  tags: string[];
   og: {
     title: string | null;
     description: string | null;
@@ -22,6 +24,9 @@ export default function CreateLinkForm() {
   const [host, setHost] = useState('');
   // Leerer String bedeutet "Kein Ablauf".
   const [ttl, setTtl] = useState<'' | TtlPreset>('');
+  const [slug, setSlug] = useState('');
+  const [tags, setTags] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CreateResponse | null>(null);
@@ -48,6 +53,8 @@ export default function CreateLinkForm() {
         body: JSON.stringify({
           url: `https://${trimmed}`,
           ttl: ttl || null,
+          slug: slug.trim() || null,
+          tags: tags.trim() || null,
         }),
       });
       const data = await res.json();
@@ -56,6 +63,8 @@ export default function CreateLinkForm() {
       }
       setResult(data);
       setHost('');
+      setSlug('');
+      setTags('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
     } finally {
@@ -139,6 +148,75 @@ export default function CreateLinkForm() {
             Nach Ablauf: Empfänger sehen einen Hinweis statt der Originalseite.
           </span>
         </div>
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((o) => !o)}
+            className="text-xs font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
+          >
+            {advancedOpen ? '− Weniger Optionen' : '+ Weitere Optionen (Slug, Tags)'}
+          </button>
+        </div>
+
+        {advancedOpen && (
+          <div className="space-y-3 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+            <div className="space-y-1">
+              <label
+                htmlFor="slug"
+                className="block text-xs font-medium text-neutral-700"
+              >
+                Eigener Slug (optional)
+              </label>
+              <div className="flex items-center gap-1 font-mono text-xs">
+                <span className="text-neutral-500">listate.de/t/</span>
+                <input
+                  id="slug"
+                  name="slug"
+                  type="text"
+                  value={slug}
+                  onChange={(e) =>
+                    setSlug(
+                      e.target.value
+                        .toLowerCase()
+                        .replace(/\s+/g, '-')
+                        .replace(/[^a-z0-9_-]/g, '')
+                    )
+                  }
+                  placeholder="gottesdienst-19-5"
+                  maxLength={64}
+                  disabled={loading}
+                  className="flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1 font-mono shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+              </div>
+              <p className="text-xs text-neutral-500">
+                Nur a–z, 0–9, „-", „_". 3–64 Zeichen. Leer lassen → zufällige Kurz-ID.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label
+                htmlFor="tags"
+                className="block text-xs font-medium text-neutral-700"
+              >
+                Tags (optional)
+              </label>
+              <input
+                id="tags"
+                name="tags"
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="newsletter, predigt, mai-2026"
+                disabled={loading}
+                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              />
+              <p className="text-xs text-neutral-500">
+                Komma-separiert, max. 8. Werden im Dashboard zum Filtern verwendet.
+              </p>
+            </div>
+          </div>
+        )}
       </form>
 
       {error && (

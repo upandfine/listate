@@ -79,6 +79,18 @@ export const links = sqliteTable('links', {
     .notNull()
     .default(sql`(datetime('now'))`),
   expiresAt: text('expires_at'),
+  slug: text('slug').unique(),
+  tags: text('tags'),
+});
+
+export const clicks = sqliteTable('clicks', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  linkId: text('link_id')
+    .notNull()
+    .references(() => links.id, { onDelete: 'cascade' }),
+  clickedAt: text('clicked_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
 });
 
 export const templates = sqliteTable('templates', {
@@ -110,5 +122,6 @@ export const blockedHosts = sqliteTable('blocked_hosts', {
 
 export type User = typeof users.$inferSelect;
 export type Link = typeof links.$inferSelect;
+export type Click = typeof clicks.$inferSelect;
 export type BlockedHost = typeof blockedHosts.$inferSelect;
 export type Template = typeof templates.$inferSelect;

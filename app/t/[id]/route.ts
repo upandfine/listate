@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq, sql } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 import { getDb } from '@/db';
-import { links, type Link } from '@/db/schema';
+import { clicks, links, type Link } from '@/db/schema';
 import { isExpired } from '@/lib/ttl';
 
 export const runtime = 'nodejs';
@@ -96,7 +96,13 @@ export async function GET(
   const { id } = params;
   const db = getDb();
 
-  const link = db.select().from(links).where(eq(links.id, id)).get();
+  // Lookup nach id ODER slug – damit /t/<random> und /t/<wunsch-slug>
+  // beide funktionieren. Slug ist UNIQUE, also höchstens ein Treffer.
+  const link = db
+    .select()
+    .from(links)
+    .where(or(eq(links.id, id), eq(links.slug, id)))
+    .get();
 
   if (!link) {
     return new NextResponse('Link nicht gefunden', {
@@ -117,10 +123,13 @@ export async function GET(
 
   const userAgent = req.headers.get('user-agent');
   if (!isCrawler(userAgent)) {
+    // Aggregat-Counter (für schnelle Anzeige im Dashboard)
     db.update(links)
       .set({ clickCount: sql`${links.clickCount} + 1` })
-      .where(eq(links.id, id))
+      .where(eq(links.id, link.id))
       .run();
+    // Einzelner Klick mit Timestamp (für Sparkline / Verlauf)
+    db.insert(clicks).values({ linkId: link.id }).run();
   }
 
   return new NextResponse(buildHtml(link), {
