@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { TTL_LABELS, TTL_PRESETS, type TtlPreset } from '@/lib/ttl';
+import { CopyButton } from './CopyButton';
+import { ShareButton } from './ShareButton';
 
 interface CreateResponse {
   trackingUrl: string;
@@ -23,7 +25,6 @@ export default function CreateLinkForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CreateResponse | null>(null);
-  const [copied, setCopied] = useState(false);
 
   // Eingabe normalisieren: mitkopiertes http(s):// und führende Whitespace
   // entfernen, damit der Präfix nicht doppelt erscheint.
@@ -38,7 +39,6 @@ export default function CreateLinkForm() {
 
     setError(null);
     setResult(null);
-    setCopied(false);
     setLoading(true);
 
     try {
@@ -60,16 +60,6 @@ export default function CreateLinkForm() {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function copyToClipboard(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore
     }
   }
 
@@ -169,16 +159,20 @@ export default function CreateLinkForm() {
                 </span>
               )}
             </div>
-            <div className="mt-1 flex items-center gap-2">
-              <code className="flex-1 break-all rounded bg-neutral-100 px-3 py-2 text-sm">
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <code className="min-w-0 flex-1 break-all rounded bg-neutral-100 px-3 py-2 text-sm">
                 {result.trackingUrl}
               </code>
-              <button
-                onClick={() => copyToClipboard(result.trackingUrl)}
-                className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium hover:bg-neutral-50"
-              >
-                {copied ? 'Kopiert' : 'Kopieren'}
-              </button>
+              <div className="flex items-center gap-2">
+                <CopyButton
+                  value={result.trackingUrl}
+                  className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                />
+                <ShareButton
+                  value={result.trackingUrl}
+                  className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                />
+              </div>
             </div>
           </div>
 

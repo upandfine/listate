@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { deleteLink } from '@/app/actions';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { CopyButton } from '@/app/components/CopyButton';
+import { ShareButton } from '@/app/components/ShareButton';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
@@ -179,7 +180,7 @@ export default async function DashboardPage({
                       </a>
                     </div>
 
-                    {/* Tracking-URL + Copy */}
+                    {/* Tracking-URL + Copy + Share */}
                     <div className="flex min-w-0 items-center gap-2">
                       <a
                         href={trackingUrl}
@@ -190,6 +191,7 @@ export default async function DashboardPage({
                         {trackingUrl}
                       </a>
                       <CopyButton value={trackingUrl} />
+                      <ShareButton value={trackingUrl} />
                     </div>
 
                     {/* Meta */}

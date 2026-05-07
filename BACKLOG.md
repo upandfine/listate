@@ -27,27 +27,68 @@ Link-Erzeugung läuft über den neuen Helper
 
 ---
 
-## 3. Share-Buttons
+## ~~3. Share-Buttons~~ (umgesetzt)
 
-**Ziel:** Tracking-Link in einem Klick in die üblichen Kanäle. Ergänzt den
-bestehenden Kopieren-Button.
+Implementiert in [`app/components/ShareButton.tsx`](app/components/ShareButton.tsx)
+als Client-Komponente mit Dropdown (WhatsApp, E-Mail, Telegram, LinkedIn,
+X / Twitter, SMS) plus optionalem „Über System teilen"-Eintrag, wenn
+`navigator.share` verfügbar ist. Eingebunden in Dashboard-Liste,
+Erstellungs-Erfolgs-Card (CreateLinkForm) und Templates-Erfolgs-Card.
+Geteilt wird ausschließlich die nackte URL ohne Begleittext.
+
+---
+
+## 4. Vorlagen-Resolver (URL aus Übersichtsseite extrahieren)
+
+**Ziel:** Bei Quellseiten, die den heutigen Inhalt als Karte in einer
+Übersicht zeigen (z. B. Bibelliga „Vers des Tages", bibelpraxis.de
+„Täglicher Bibel-Impuls"), automatisch die heutige Detail-URL ermitteln
+statt nur die statische Übersicht zu speichern.
 
 ### Funktionsweise
-- Neben dem Kopieren-Button (Erstellungs-Vorschau **und** Dashboard-Liste)
-  ein zusätzlicher **„Teilen"-Button**.
-- Geteilt wird **nur die nackte URL**, kein Begleittext.
-- Mobile: `navigator.share()` (Web Share API) → System-Share-Sheet zeigt
-  alle installierten Apps.
-- Desktop: Dropdown mit Direkt-Links zu:
-  - WhatsApp (`https://wa.me/?text=...`)
-  - E-Mail (`mailto:?body=...`)
-  - Telegram (`https://t.me/share/url?url=...`)
-  - LinkedIn (`https://www.linkedin.com/sharing/share-offsite/?url=...`)
-  - X / Twitter (`https://twitter.com/intent/tweet?url=...`)
-  - SMS (`sms:?body=...`)
+- Neue Spalte `templates.url_pattern TEXT NULL`. Wenn leer → bisheriges
+  Verhalten (URL statisch).
+- Beim Klick auf „Link erzeugen":
+  1. Listate lädt `source_url`,
+  2. extrahiert per Regex alle `href="…"`-Werte aus dem HTML,
+  3. dedupliziert auf eindeutige URLs (Reihenfolge bleibt),
+  4. nimmt den **ersten Treffer**, der dem `url_pattern` entspricht,
+  5. legt darauf einen ganz normalen statischen Tracking-Link an.
+- Bei keinem Match: klare Fehlermeldung mit den ersten ~10 Kandidaten,
+  damit der Admin sein Pattern verfeinern kann.
 
-### Technik-Skizze
-- Eigene Client-Komponente `ShareButton.tsx` analog zu `CopyButton.tsx`.
-- Web-Share-Detection (`'share' in navigator`) mit Fallback auf
-  Dropdown auf Desktop.
-- Reihenfolge im Dropdown: WhatsApp, E-Mail, Telegram, LinkedIn, X, SMS.
+### Beispiel-Konfigurationen
+```
+Bibelliga
+  source_url:   https://www.bibelliga.org/vers-des-tages/
+  url_pattern:  ^https://www\.bibelliga\.org/vers-des-tages-[^/]+/$
+
+Bibelpraxis
+  source_url:   https://www.bibelpraxis.de/podcasts/1.html
+  url_pattern:  ^https://www\.bibelpraxis\.de/a\d+\.html$
+
+Lebenistmehr (kein Resolver, statisch)
+  source_url:   https://www.lebenistmehr.de/leben-ist-mehr.html
+  url_pattern:  (leer)
+```
+
+### UI-Erweiterung im Admin
+- Optionales Feld „Link-Pattern (Regex)" im Vorlagen-Form.
+- **„Auflösen testen"-Button** rechts daneben: lädt Quellseite einmal,
+  zeigt sofort entweder „→ würde ergeben: `<URL>`" oder
+  „Kein Match. Kandidaten: …". Vermeidet Trial-and-Error im User-Flow.
+
+### Grenzen
+- Funktioniert nur, wenn der heutige Inhalt **oben** in der Übersicht
+  steht (was bei beiden geprüften Beispielen der Fall ist).
+- Bricht, wenn Quellseite ihr URL-Schema ändert → Pattern muss neu
+  gesetzt werden. Mit „Auflösen testen" in 30 Sekunden behebbar.
+- JS-gerendete Seiten ohne SSR liefern leeres HTML → kein Match. In
+  dem Fall ist die Quelle eh kein guter Kandidat fürs Tracking.
+
+### Verworfen
+- **RSS/Atom-Feed parsen** statt HTML. Pro: garantiert sortiert.
+  Con: nicht jede Seite hat Feed, Code-Pfade verdoppeln sich,
+  Nutzen marginal.
+- **CSS-Selector-basierter Resolver.** Pro: präziser. Con: braucht
+  cheerio/JSDOM, mehr Code, Admin muss CSS verstehen.

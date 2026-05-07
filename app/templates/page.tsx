@@ -5,6 +5,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { useTemplate } from '@/app/actions';
 import { CopyButton } from '@/app/components/CopyButton';
+import { ShareButton } from '@/app/components/ShareButton';
 import { getDb } from '@/db';
 import { links, templates } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
@@ -84,6 +85,7 @@ export default async function TemplatesPage({
               {`${baseUrl}/t/${justCreated.id}`}
             </code>
             <CopyButton value={`${baseUrl}/t/${justCreated.id}`} />
+            <ShareButton value={`${baseUrl}/t/${justCreated.id}`} />
           </div>
 
           {(justCreated.ogImage || justCreated.ogTitle) && (
