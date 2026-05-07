@@ -72,7 +72,8 @@ function bootstrap(sqlite: Database.Database) {
       og_image       TEXT,
       og_site_name   TEXT,
       click_count    INTEGER NOT NULL DEFAULT 0,
-      created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at     TEXT
     );
 
     CREATE TABLE IF NOT EXISTS blocked_hosts (
@@ -82,6 +83,24 @@ function bootstrap(sqlite: Database.Database) {
       created_by TEXT REFERENCES user(id) ON DELETE SET NULL
     );
   `);
+
+  // Idempotente Schema-Migrationen für bestehende Datenbanken,
+  // bei denen CREATE TABLE IF NOT EXISTS keine neuen Spalten ergänzt.
+  ensureColumn(sqlite, 'links', 'expires_at', 'TEXT');
+}
+
+function ensureColumn(
+  sqlite: Database.Database,
+  table: string,
+  column: string,
+  type: string
+) {
+  const cols = sqlite
+    .prepare(`PRAGMA table_info('${table}')`)
+    .all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }
 
 export function getDb(): DB {

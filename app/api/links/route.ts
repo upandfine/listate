@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
@@ -17,12 +17,22 @@ export async function GET(req: Request) {
   const isAdmin = session.user.role === 'admin';
   const url = new URL(req.url);
   const userFilter = url.searchParams.get('user') || undefined;
+  const showExpired = url.searchParams.get('expired') === '1';
 
-  const where = isAdmin
+  const ownerCondition = isAdmin
     ? userFilter
       ? eq(links.userId, userFilter)
       : sql`1 = 1`
     : eq(links.userId, session.user.id);
+
+  const activeCondition = or(
+    isNull(links.expiresAt),
+    sql`${links.expiresAt} > datetime('now')`
+  );
+
+  const where = showExpired
+    ? ownerCondition
+    : and(ownerCondition, activeCondition);
 
   const rows = getDb()
     .select({
@@ -34,6 +44,7 @@ export async function GET(req: Request) {
       og_site_name: links.ogSiteName,
       click_count: links.clickCount,
       created_at: links.createdAt,
+      expires_at: links.expiresAt,
       user_id: links.userId,
       owner_email: users.email,
     })

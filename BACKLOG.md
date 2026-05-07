@@ -5,32 +5,12 @@ Implementierung jeweils nochmal abgestimmt.
 
 ---
 
-## 1. Ablaufdatum für Tracking-Links
+## ~~1. Ablaufdatum für Tracking-Links~~ (umgesetzt)
 
-**Ziel:** Übersichtlichkeit erhöhen. Alte oder bewusst zeitlich begrenzte Links
-verschwinden aus dem Dashboard, ohne dass sie gelöscht werden.
-
-### Funktionsweise
-- Beim Erstellen optionaler Ablauf wählbar. Presets:
-  - **Tage:** 2, 5, 7
-  - **Wochen:** 2, 4
-  - **Monate:** 1, 3
-  - „Kein Ablauf" (Default)
-- Nach Ablauf bleibt der Link in der DB, ist aber **nicht mehr aktiv**:
-  - `/t/[id]` liefert eine eigene **„Link abgelaufen"-Seite** mit HTTP 410 Gone.
-  - Kein Redirect, kein Klick-Increment.
-- Dashboard:
-  - Default-View zeigt nur aktive Links.
-  - Filter-Toggle „auch abgelaufene anzeigen".
-- Endgültig löschen geht weiterhin über den bestehenden Trash-Button.
-
-### Schema-Skizze
-- Neue Spalte auf `links`: `expires_at TEXT NULL`.
-
-### UI-Hinweis
-- Im `CreateLinkForm` ein kompakter Selector unter dem URL-Feld.
-  Default: „Kein Ablauf". Sieben Presets in einer kompakten Zeile,
-  ggf. nach Einheit (Tage/Wochen/Monate) gruppiert.
+Implementiert in [`lib/ttl.ts`](lib/ttl.ts), `CreateLinkForm` (Selector mit
+7 Presets + „Kein Ablauf"), `/api/create` (TTL → `expires_at`),
+`/t/[id]` (HTTP 410 mit gebrandeter Hinweisseite), Dashboard-Filter
+(Default nur aktive, Toggle „Abgelaufene anzeigen").
 
 ---
 

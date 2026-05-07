@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { deleteLink } from '@/app/actions';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
@@ -6,26 +6,38 @@ import { CopyButton } from '@/app/components/CopyButton';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
+import { isExpired } from '@/lib/ttl';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ user?: string }>;
+  searchParams: Promise<{ user?: string; expired?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) return null;
 
   const isAdmin = session.user.role === 'admin';
-  const { user: userFilter } = await searchParams;
+  const { user: userFilter, expired } = await searchParams;
+  const showExpired = expired === '1';
   const db = getDb();
 
-  const where = isAdmin
+  const ownerCondition = isAdmin
     ? userFilter
       ? eq(links.userId, userFilter)
       : sql`1 = 1`
     : eq(links.userId, session.user.id);
+
+  // Default: nur aktive Links. Mit ?expired=1 werden auch abgelaufene gezeigt.
+  const activeCondition = or(
+    isNull(links.expiresAt),
+    sql`${links.expiresAt} > datetime('now')`
+  );
+
+  const where = showExpired
+    ? ownerCondition
+    : and(ownerCondition, activeCondition);
 
   const rows = db
     .select({
@@ -35,6 +47,7 @@ export default async function DashboardPage({
       ogImage: links.ogImage,
       clickCount: links.clickCount,
       createdAt: links.createdAt,
+      expiresAt: links.expiresAt,
       userId: links.userId,
       ownerEmail: users.email,
       ownerName: users.name,
@@ -68,15 +81,16 @@ export default async function DashboardPage({
                 {userFilter ? '(gefiltert)' : '(alle Nutzer)'}
               </>
             )}
+            {showExpired && ' · inkl. abgelaufener'}
           </p>
         </div>
 
-        {isAdmin && (
-          <form
-            action="/dashboard"
-            method="get"
-            className="flex items-end gap-2"
-          >
+        <form
+          action="/dashboard"
+          method="get"
+          className="flex flex-wrap items-end gap-3"
+        >
+          {isAdmin && (
             <div>
               <label
                 htmlFor="user"
@@ -98,14 +112,26 @@ export default async function DashboardPage({
                 ))}
               </select>
             </div>
-            <button
-              type="submit"
-              className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-neutral-50"
-            >
-              Anwenden
-            </button>
-          </form>
-        )}
+          )}
+
+          <label className="flex items-center gap-2 pb-1.5 text-xs text-neutral-700">
+            <input
+              type="checkbox"
+              name="expired"
+              value="1"
+              defaultChecked={showExpired}
+              className="h-4 w-4 rounded border-neutral-300 text-brand focus:ring-brand"
+            />
+            Abgelaufene anzeigen
+          </label>
+
+          <button
+            type="submit"
+            className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-neutral-50"
+          >
+            Anwenden
+          </button>
+        </form>
       </header>
 
       {rows.length === 0 ? (
@@ -116,10 +142,16 @@ export default async function DashboardPage({
         <ul className="space-y-3">
           {rows.map((link) => {
             const trackingUrl = `${baseUrl}/t/${link.id}`;
+            const expired = isExpired(link.expiresAt);
             return (
               <li
                 key={link.id}
-                className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm"
+                className={
+                  'overflow-hidden rounded-lg border bg-white shadow-sm ' +
+                  (expired
+                    ? 'border-neutral-200 opacity-60'
+                    : 'border-neutral-200')
+                }
               >
                 <div className="flex flex-col sm:flex-row">
                   {link.ogImage && (
@@ -165,6 +197,26 @@ export default async function DashboardPage({
                       <span>
                         {new Date(link.createdAt + 'Z').toLocaleString('de-DE')}
                       </span>
+                      {link.expiresAt && (
+                        <>
+                          <span className="text-neutral-300">·</span>
+                          {expired ? (
+                            <span className="rounded bg-accent/10 px-1.5 py-0.5 font-medium text-accent">
+                              abgelaufen am{' '}
+                              {new Date(
+                                link.expiresAt + 'Z'
+                              ).toLocaleDateString('de-DE')}
+                            </span>
+                          ) : (
+                            <span>
+                              läuft ab am{' '}
+                              {new Date(
+                                link.expiresAt + 'Z'
+                              ).toLocaleDateString('de-DE')}
+                            </span>
+                          )}
+                        </>
+                      )}
                       {isAdmin && (
                         <>
                           <span className="text-neutral-300">·</span>

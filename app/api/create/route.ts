@@ -7,6 +7,7 @@ import { blockedHosts, links } from '@/db/schema';
 import { generateId } from '@/lib/generateId';
 import { getBaseUrl } from '@/lib/baseUrl';
 import { normalizeHost } from '@/lib/host';
+import { ttlToExpiresAt } from '@/lib/ttl';
 
 export const runtime = 'nodejs';
 
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { url?: unknown };
+  let body: { url?: unknown; ttl?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -47,6 +48,8 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  const expiresAt = ttlToExpiresAt(body.ttl);
 
   const rawUrl = typeof body.url === 'string' ? body.url.trim() : '';
   if (!rawUrl || !/^https:\/\//i.test(rawUrl)) {
@@ -130,6 +133,7 @@ export async function POST(req: NextRequest) {
         ogDescription: description,
         ogImage: image,
         ogSiteName: siteName,
+        expiresAt,
       })
       .run();
   } catch (err) {
@@ -145,6 +149,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     trackingUrl: `${baseUrl}/t/${id}`,
     id,
+    expiresAt,
     og: { title, description, image, siteName },
   });
 }

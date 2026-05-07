@@ -78,6 +78,7 @@ export const links = sqliteTable('links', {
   createdAt: text('created_at')
     .notNull()
     .default(sql`(datetime('now'))`),
+  expiresAt: text('expires_at'),
 });
 
 export const blockedHosts = sqliteTable('blocked_hosts', {
