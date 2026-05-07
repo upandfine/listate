@@ -4,6 +4,7 @@ import { getDb } from '@/db';
 import { blockedHosts, links } from '@/db/schema';
 import { generateId } from '@/lib/generateId';
 import { normalizeHost } from '@/lib/host';
+import { checkSafeBrowsing, describeThreats } from '@/lib/safeBrowsing';
 
 interface OgImage {
   url?: string;
@@ -79,6 +80,19 @@ export async function createTrackingLink(params: {
       blocked.reason
         ? `Diese Domain ist gesperrt: ${blocked.reason}`
         : 'Diese Domain ist gesperrt.',
+      403
+    );
+  }
+
+  // Google Safe Browsing: bei aktiviertem Key wird die Ziel-URL gegen
+  // Threat-Lists geprüft. Bei Treffer (Phishing, Malware o.ä.) Insert
+  // verhindern. Wenn Service nicht erreichbar oder kein Key: durchlassen.
+  const sb = await checkSafeBrowsing(url);
+  if (!sb.safe && sb.threats) {
+    throw new TrackingLinkError(
+      `Diese URL wurde von Google als unsicher eingestuft (${describeThreats(
+        sb.threats
+      )}).`,
       403
     );
   }

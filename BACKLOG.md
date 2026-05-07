@@ -38,6 +38,41 @@ Geteilt wird ausschließlich die nackte URL ohne Begleittext.
 
 ---
 
+## ~~5. Google Safe Browsing~~ (umgesetzt)
+
+Implementiert in [`lib/safeBrowsing.ts`](lib/safeBrowsing.ts) als
+optional einsetzbarer Helper. Aktiv, wenn ENV `GOOGLE_SAFE_BROWSING_API_KEY`
+gesetzt ist; sonst No-Op (graceful degradation). Eingebunden in
+[`lib/createTrackingLink.ts`](lib/createTrackingLink.ts) nach Block-Liste
+und vor OG-Fetch — Treffer (Phishing, Malware, Unwanted Software,
+Potentially Harmful Application) → `TrackingLinkError` 403 mit Klarnamen.
+Service-Fehler (HTTP, Netzwerk, Timeout) sind fail-open: der Workflow
+wird nicht blockiert, wenn Google gerade nicht erreichbar ist.
+
+---
+
+## 6. Adult-Content-Filter (offen, optional)
+
+**Ziel:** Pornografische / NSFW-Inhalte am Anlegen hindern. Nicht durch
+Safe Browsing abgedeckt — das ist ausschließlich Threat-Intel
+(Phishing/Malware), keine Inhalts-Klassifikation.
+
+**Optionen:**
+- **Eigene Hostliste** aus einer kuratierten Quelle wie
+  StevenBlack/hosts (Adult-Variante) als Datei im Repo, beim Bootstrap
+  in Memory geladen, vor Insert per O(1)-Lookup gegen `parsed.hostname`
+  geprüft. ~50k Einträge, ~1–2 MB. Kostenlos, gelegentlich
+  aktualisierbar via Skript.
+- **CleanBrowsing API / NextDNS API**: kommerzielle URL-Klassifikation
+  inkl. Adult-Kategorie. Pflegeleichter, kostet ab Volumen.
+
+**Empfehlung:** Nur bauen, wenn Listate sich öffentlich für externe
+Nutzer öffnet. Im aktuellen Setup (eingeladene User mit Login + Admin-
+Blockliste) ist das Risiko praktisch null und der False-Positive-
+Aufwand (z. B. medizinische Inhalte, Wikipedia-Artikel) zu groß.
+
+---
+
 ## ~~4. Vorlagen-Resolver~~ (umgesetzt)
 
 Implementiert in [`lib/resolveTemplateUrl.ts`](lib/resolveTemplateUrl.ts)
