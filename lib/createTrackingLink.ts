@@ -4,6 +4,7 @@ import { getDb } from '@/db';
 import { blockedHosts, links } from '@/db/schema';
 import { generateId } from '@/lib/generateId';
 import { normalizeHost } from '@/lib/host';
+import { isAdultHost } from '@/lib/adultFilter';
 import { checkSafeBrowsing, describeThreats } from '@/lib/safeBrowsing';
 
 interface OgImage {
@@ -80,6 +81,14 @@ export async function createTrackingLink(params: {
       blocked.reason
         ? `Diese Domain ist gesperrt: ${blocked.reason}`
         : 'Diese Domain ist gesperrt.',
+      403
+    );
+  }
+
+  // Adult-Content-Filter via Hostliste (StevenBlack/hosts porn-only).
+  if (isAdultHost(host)) {
+    throw new TrackingLinkError(
+      'Diese Domain ist als nicht-jugendfreier Inhalt gelistet und kann nicht verlinkt werden.',
       403
     );
   }

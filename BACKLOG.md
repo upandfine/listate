@@ -51,25 +51,25 @@ wird nicht blockiert, wenn Google gerade nicht erreichbar ist.
 
 ---
 
-## 6. Adult-Content-Filter (offen, optional)
+## ~~6. Adult-Content-Filter~~ (umgesetzt)
 
-**Ziel:** Pornografische / NSFW-Inhalte am Anlegen hindern. Nicht durch
-Safe Browsing abgedeckt — das ist ausschließlich Threat-Intel
-(Phishing/Malware), keine Inhalts-Klassifikation.
+Implementiert via Hostliste aus
+[StevenBlack/hosts (porn-only)](https://github.com/StevenBlack/hosts/tree/master/alternates/porn-only).
+Liste committed unter
+[`lib/blocklists/adult-hosts.txt`](lib/blocklists/adult-hosts.txt)
+(~64k einzigartige Hosts, ~2 MB). [`lib/adultFilter.ts`](lib/adultFilter.ts)
+lädt die Datei lazy beim ersten Lookup, dedupliziert in einem `Set` und
+prüft nicht nur den exakten Host, sondern auch alle Eltern-Domains
+(`subdomain.bad.example` matcht über `bad.example`).
 
-**Optionen:**
-- **Eigene Hostliste** aus einer kuratierten Quelle wie
-  StevenBlack/hosts (Adult-Variante) als Datei im Repo, beim Bootstrap
-  in Memory geladen, vor Insert per O(1)-Lookup gegen `parsed.hostname`
-  geprüft. ~50k Einträge, ~1–2 MB. Kostenlos, gelegentlich
-  aktualisierbar via Skript.
-- **CleanBrowsing API / NextDNS API**: kommerzielle URL-Klassifikation
-  inkl. Adult-Kategorie. Pflegeleichter, kostet ab Volumen.
+Eingebunden in
+[`lib/createTrackingLink.ts`](lib/createTrackingLink.ts) nach der
+Block-Liste und vor Safe Browsing. Treffer → `TrackingLinkError` 403.
 
-**Empfehlung:** Nur bauen, wenn Listate sich öffentlich für externe
-Nutzer öffnet. Im aktuellen Setup (eingeladene User mit Login + Admin-
-Blockliste) ist das Risiko praktisch null und der False-Positive-
-Aufwand (z. B. medizinische Inhalte, Wikipedia-Artikel) zu groß.
+Ins Standalone-Bundle eingeschleust via `outputFileTracingIncludes`
+in [`next.config.mjs`](next.config.mjs), damit Sliplane die Datei zur
+Laufzeit findet. Aktualisierung via
+[`scripts/update-adult-hosts.sh`](scripts/update-adult-hosts.sh).
 
 ---
 
