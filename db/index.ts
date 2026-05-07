@@ -84,10 +84,6 @@ function bootstrap(sqlite: Database.Database) {
       clicked_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE INDEX IF NOT EXISTS idx_clicks_link_id ON clicks(link_id);
-    CREATE INDEX IF NOT EXISTS idx_clicks_clicked_at ON clicks(clicked_at);
-    CREATE INDEX IF NOT EXISTS idx_links_slug ON links(slug);
-
     CREATE TABLE IF NOT EXISTS blocked_hosts (
       host       TEXT PRIMARY KEY,
       reason     TEXT,
