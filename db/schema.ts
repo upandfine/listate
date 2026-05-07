@@ -88,6 +88,7 @@ export const templates = sqliteTable('templates', {
   label: text('label').notNull(),
   originalUrl: text('original_url').notNull(),
   description: text('description'),
+  urlPattern: text('url_pattern'),
   createdAt: text('created_at')
     .notNull()
     .default(sql`(datetime('now'))`),

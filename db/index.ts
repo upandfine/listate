@@ -88,6 +88,7 @@ function bootstrap(sqlite: Database.Database) {
       label        TEXT NOT NULL,
       original_url TEXT NOT NULL,
       description  TEXT,
+      url_pattern  TEXT,
       created_at   TEXT NOT NULL DEFAULT (datetime('now')),
       created_by   TEXT REFERENCES user(id) ON DELETE SET NULL
     );
@@ -96,6 +97,7 @@ function bootstrap(sqlite: Database.Database) {
   // Idempotente Schema-Migrationen für bestehende Datenbanken,
   // bei denen CREATE TABLE IF NOT EXISTS keine neuen Spalten ergänzt.
   ensureColumn(sqlite, 'links', 'expires_at', 'TEXT');
+  ensureColumn(sqlite, 'templates', 'url_pattern', 'TEXT');
 }
 
 function ensureColumn(

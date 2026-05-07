@@ -157,7 +157,19 @@ export default async function TemplatesPage({
               className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="font-medium text-neutral-900">{tpl.label}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-neutral-900">
+                    {tpl.label}
+                  </span>
+                  {tpl.urlPattern && (
+                    <span
+                      title="Beim Klick wird der heutige Link aus der Quellseite ermittelt."
+                      className="rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-brand"
+                    >
+                      Tagesaktuell
+                    </span>
+                  )}
+                </div>
                 {tpl.description && (
                   <p className="text-sm text-neutral-600">{tpl.description}</p>
                 )}

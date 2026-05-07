@@ -11,6 +11,10 @@ import {
   TrackingLinkError,
 } from '@/lib/createTrackingLink';
 import { normalizeHost } from '@/lib/host';
+import {
+  resolveTemplateUrl,
+  type ResolveResult,
+} from '@/lib/resolveTemplateUrl';
 
 async function requireUser() {
   const session = await auth();
@@ -113,6 +117,8 @@ export async function createTemplate(formData: FormData) {
   const rawUrl = String(formData.get('url') ?? '').trim();
   const description =
     String(formData.get('description') ?? '').trim() || null;
+  const urlPattern =
+    String(formData.get('urlPattern') ?? '').trim() || null;
 
   if (!label) throw new Error('Bezeichnung fehlt.');
   if (!/^https:\/\//i.test(rawUrl)) {
@@ -126,18 +132,57 @@ export async function createTemplate(formData: FormData) {
     throw new Error('URL ist ungültig.');
   }
 
+  if (urlPattern) {
+    try {
+      new RegExp(urlPattern);
+    } catch (err) {
+      throw new Error(
+        `Pattern ist kein gültiger Regex: ${
+          err instanceof Error ? err.message : 'Fehler'
+        }`
+      );
+    }
+  }
+
   getDb()
     .insert(templates)
     .values({
       label,
       originalUrl: parsed.toString(),
       description,
+      urlPattern,
       createdBy: user.id,
     })
     .run();
 
   revalidatePath('/admin/templates');
   revalidatePath('/templates');
+}
+
+export async function testTemplatePattern(input: {
+  url: string;
+  pattern: string;
+}): Promise<ResolveResult> {
+  await requireAdmin();
+  const url = input.url.trim();
+  const pattern = input.pattern.trim();
+
+  if (!url || !/^https:\/\//i.test(url)) {
+    return {
+      ok: false,
+      candidates: [],
+      error: 'Quell-URL muss mit https:// beginnen.',
+    };
+  }
+  if (!pattern) {
+    return {
+      ok: false,
+      candidates: [],
+      error: 'Bitte ein Pattern angeben.',
+    };
+  }
+
+  return await resolveTemplateUrl(url, pattern);
 }
 
 export async function deleteTemplate(formData: FormData) {
@@ -162,10 +207,27 @@ export async function useTemplate(formData: FormData) {
     .get();
   if (!template) throw new Error('Vorlage nicht gefunden.');
 
+  // Wenn ein url_pattern hinterlegt ist, wird die Quell-URL geladen,
+  // alle href-Werte extrahiert und der erste Match als Ziel-URL verwendet.
+  let targetUrl = template.originalUrl;
+  if (template.urlPattern) {
+    const result = await resolveTemplateUrl(
+      template.originalUrl,
+      template.urlPattern
+    );
+    if (!result.ok || !result.resolved) {
+      throw new Error(
+        result.error ??
+          'Quellseite enthielt keinen Link, der zum Pattern passt.'
+      );
+    }
+    targetUrl = result.resolved;
+  }
+
   let created;
   try {
     created = await createTrackingLink({
-      rawUrl: template.originalUrl,
+      rawUrl: targetUrl,
       userId: user.id,
       expiresAt: null,
     });

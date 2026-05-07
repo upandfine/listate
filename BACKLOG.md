@@ -38,57 +38,24 @@ Geteilt wird ausschließlich die nackte URL ohne Begleittext.
 
 ---
 
-## 4. Vorlagen-Resolver (URL aus Übersichtsseite extrahieren)
+## ~~4. Vorlagen-Resolver~~ (umgesetzt)
 
-**Ziel:** Bei Quellseiten, die den heutigen Inhalt als Karte in einer
-Übersicht zeigen (z. B. Bibelliga „Vers des Tages", bibelpraxis.de
-„Täglicher Bibel-Impuls"), automatisch die heutige Detail-URL ermitteln
-statt nur die statische Übersicht zu speichern.
+Implementiert in [`lib/resolveTemplateUrl.ts`](lib/resolveTemplateUrl.ts)
+als Helper, der die Quell-URL lädt, alle `href`-Werte extrahiert,
+relative URLs gegen die Quelle absolutisiert, dedupliziert und den
+ersten Regex-Treffer als Ziel-URL liefert.
 
-### Funktionsweise
-- Neue Spalte `templates.url_pattern TEXT NULL`. Wenn leer → bisheriges
-  Verhalten (URL statisch).
-- Beim Klick auf „Link erzeugen":
-  1. Listate lädt `source_url`,
-  2. extrahiert per Regex alle `href="…"`-Werte aus dem HTML,
-  3. dedupliziert auf eindeutige URLs (Reihenfolge bleibt),
-  4. nimmt den **ersten Treffer**, der dem `url_pattern` entspricht,
-  5. legt darauf einen ganz normalen statischen Tracking-Link an.
-- Bei keinem Match: klare Fehlermeldung mit den ersten ~10 Kandidaten,
-  damit der Admin sein Pattern verfeinern kann.
+- `templates.url_pattern` als optionale Spalte in
+  [`db/schema.ts`](db/schema.ts) plus `ensureColumn`-Migration.
+- `useTemplate`-Action ruft den Resolver, wenn ein Pattern hinterlegt ist.
+- `testTemplatePattern`-Action für den Live-Test im Admin-UI.
+- [`app/admin/templates/TemplateForm.tsx`](app/admin/templates/TemplateForm.tsx)
+  als Client-Form mit Pattern-Feld und „Auflösen testen"-Button, der
+  bei Erfolg die ermittelte URL in Grün und bei Fehlschlag die ersten
+  10 Kandidaten in Bernstein anzeigt.
+- Vorlagen mit Pattern bekommen ein „Tagesaktuell"-Badge in
+  [`/templates`](app/templates/page.tsx) und ein „Resolver"-Badge plus
+  Pattern-Anzeige in der Admin-Liste.
 
-### Beispiel-Konfigurationen
-```
-Bibelliga
-  source_url:   https://www.bibelliga.org/vers-des-tages/
-  url_pattern:  ^https://www\.bibelliga\.org/vers-des-tages-[^/]+/$
-
-Bibelpraxis
-  source_url:   https://www.bibelpraxis.de/podcasts/1.html
-  url_pattern:  ^https://www\.bibelpraxis\.de/a\d+\.html$
-
-Lebenistmehr (kein Resolver, statisch)
-  source_url:   https://www.lebenistmehr.de/leben-ist-mehr.html
-  url_pattern:  (leer)
-```
-
-### UI-Erweiterung im Admin
-- Optionales Feld „Link-Pattern (Regex)" im Vorlagen-Form.
-- **„Auflösen testen"-Button** rechts daneben: lädt Quellseite einmal,
-  zeigt sofort entweder „→ würde ergeben: `<URL>`" oder
-  „Kein Match. Kandidaten: …". Vermeidet Trial-and-Error im User-Flow.
-
-### Grenzen
-- Funktioniert nur, wenn der heutige Inhalt **oben** in der Übersicht
-  steht (was bei beiden geprüften Beispielen der Fall ist).
-- Bricht, wenn Quellseite ihr URL-Schema ändert → Pattern muss neu
-  gesetzt werden. Mit „Auflösen testen" in 30 Sekunden behebbar.
-- JS-gerendete Seiten ohne SSR liefern leeres HTML → kein Match. In
-  dem Fall ist die Quelle eh kein guter Kandidat fürs Tracking.
-
-### Verworfen
-- **RSS/Atom-Feed parsen** statt HTML. Pro: garantiert sortiert.
-  Con: nicht jede Seite hat Feed, Code-Pfade verdoppeln sich,
-  Nutzen marginal.
-- **CSS-Selector-basierter Resolver.** Pro: präziser. Con: braucht
-  cheerio/JSDOM, mehr Code, Admin muss CSS verstehen.
+Live verifiziert mit beiden Beispiel-Quellen (Bibelliga, Bibelpraxis):
+beide liefern korrekt die heutige Detail-URL.
