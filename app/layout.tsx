@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
-import { auth, signOut } from '@/auth';
-import { BrandTile } from './components/BrandMark';
+import { auth } from '@/auth';
+import { Header } from './components/Header';
 import './globals.css';
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://listate.de';
@@ -53,96 +53,18 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  const user = session?.user;
-  const isAdmin = user?.role === 'admin';
+  const user = session?.user
+    ? {
+        email: session.user.email,
+        image: session.user.image,
+        role: session.user.role,
+      }
+    : null;
 
   return (
     <html lang="de">
       <body className="flex min-h-screen flex-col">
-        <header className="border-b border-neutral-200 bg-white">
-          <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-6 py-4">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-lg font-semibold text-brand"
-            >
-              <BrandTile className="h-7 w-7" />
-              Listate
-            </Link>
-            <nav className="flex items-center gap-4 text-sm">
-              {user && (
-                <>
-                  <Link
-                    href="/"
-                    className="text-neutral-600 hover:text-neutral-900"
-                  >
-                    Neu
-                  </Link>
-                  <Link
-                    href="/templates"
-                    className="text-neutral-600 hover:text-neutral-900"
-                  >
-                    Vorlagen
-                  </Link>
-                  <Link
-                    href="/dashboard"
-                    className="text-neutral-600 hover:text-neutral-900"
-                  >
-                    Dashboard
-                  </Link>
-                  {isAdmin && (
-                    <Link
-                      href="/admin/blocked"
-                      className="text-neutral-600 hover:text-neutral-900"
-                    >
-                      Blockliste
-                    </Link>
-                  )}
-                </>
-              )}
-
-              {user ? (
-                <div className="flex items-center gap-2 border-l border-neutral-200 pl-4">
-                  {user.image && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={user.image}
-                      alt=""
-                      className="h-7 w-7 rounded-full"
-                    />
-                  )}
-                  <span className="hidden text-xs text-neutral-600 sm:inline">
-                    {user.email}
-                    {isAdmin && (
-                      <span className="ml-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
-                        Admin
-                      </span>
-                    )}
-                  </span>
-                  <form
-                    action={async () => {
-                      'use server';
-                      await signOut({ redirectTo: '/login' });
-                    }}
-                  >
-                    <button
-                      type="submit"
-                      className="text-xs text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
-                    >
-                      Abmelden
-                    </button>
-                  </form>
-                </div>
-              ) : (
-                <Link
-                  href="/login"
-                  className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-dark"
-                >
-                  Anmelden
-                </Link>
-              )}
-            </nav>
-          </div>
-        </header>
+        <Header user={user} />
         <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
           {children}
         </main>
