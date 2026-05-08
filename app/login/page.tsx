@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth, isDevBypassEnabled, signIn } from '@/auth';
+import { safeRedirectPath } from '@/lib/safeRedirect';
 import { BrandTile } from '../components/BrandMark';
 import {
   FeatureCountIcon,
@@ -22,7 +23,9 @@ export default async function LoginPage({
     redirect('/');
   }
 
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl: rawCallbackUrl } = await searchParams;
+  // Open-Redirect-Schutz: nur relative Pfade akzeptieren.
+  const callbackUrl = safeRedirectPath(rawCallbackUrl);
 
   return (
     <div className="mx-auto max-w-md space-y-10 py-6">
@@ -41,7 +44,7 @@ export default async function LoginPage({
         action={async () => {
           'use server';
           await signIn('google', {
-            redirectTo: callbackUrl ?? '/',
+            redirectTo: callbackUrl,
           });
         }}
       >
@@ -67,7 +70,7 @@ export default async function LoginPage({
             action={async () => {
               'use server';
               await signIn('dev-bypass', {
-                redirectTo: callbackUrl ?? '/',
+                redirectTo: callbackUrl,
               });
             }}
           >

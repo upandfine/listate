@@ -57,6 +57,128 @@ personenbezogene IPs zu speichern.
 Non-Commercial, monatliches Update via Skript) → keine externe
 Abhängigkeit, keine Drittlands-Übermittlung.
 
+### E. Testing-Strategie + Gherkin-Automatisierung
+
+**Ziel:** Die in `/features/*.feature` festgehaltenen Verhaltensspezifikationen
+in ausführbare Tests übersetzen — und mittelfristig zur Regressionsbasis
+für jeden weiteren Pull-Request machen.
+
+#### Ist-Zustand
+- [features/](features) enthält Gherkin-Specs in deutscher Sprache für
+  alle Hauptfunktionen (Auth, Create, Edit, Tracking, Dashboard,
+  Stats, Templates, Admin, Account, Security).
+- Die Specs sind nicht automatisiert — bisher reine Doku/Manuelle QA-Vorlage.
+
+#### Soll-Architektur (Test-Pyramide)
+
+```
+        ┌────────────┐
+        │  E2E (5%)  │  Playwright + Cucumber (BDD), 1× pro Hauptpfad
+        ├────────────┤
+        │  Int (25%) │  Vitest gegen In-Memory-SQLite, Server-Actions
+        ├────────────┤
+        │ Unit (70%) │  Vitest auf reine Helper (lib/*)
+        └────────────┘
+```
+
+**Unit (Vitest, schnell, viele):**
+- `lib/slug.ts`, `lib/tags.ts`, `lib/host.ts`, `lib/ttl.ts`, `lib/safeRedirect.ts`
+- `lib/sparkline.ts`, `lib/clickStats.ts` (mit In-Memory-DB)
+- `lib/resolveTemplateUrl.ts` (mit gemocktem fetch)
+- `lib/safeBrowsing.ts` (mit gemocktem fetch)
+- `lib/createTrackingLink.ts` (mit In-Memory-DB + gemocktem ogs)
+- Ziel: ≥ 80 % Branch-Coverage auf `lib/`.
+
+**Integration (Vitest, mittel):**
+- Server-Actions: `createTemplate`, `useTemplate`, `updateLink`,
+  `deleteLink`, `blockHost`, `deleteAccount` — jeweils mit
+  In-Memory-SQLite und gemocktem `auth()`.
+- API-Routes: `/api/create`, `/api/links`, `/api/export`, `/api/health`.
+- DB-Migrationen: Bootstrap auf legacy-Schema → erwartete Spalten.
+
+**End-to-End (Playwright + @cucumber/cucumber, langsam, gezielt):**
+- Übersetzt jeden `.feature`-Datei in einen Test-Lauf gegen einen
+  echten Dev-Server (Port 3041) mit eigenem `data/test.db`.
+- Step-Definitions in `tests/e2e/steps/*.ts`, die mit dem Dev-Bypass
+  einloggen und über die UI klicken (Playwright-Page-Object).
+- Mindestens für jedes der 10 `.feature`-Files ein Smoke-Test über
+  den Happy-Path.
+- CI: GitHub Actions matrix (Chromium, optional Firefox).
+
+#### Konkrete Bausteine (Reihenfolge)
+
+1. **Setup (1 h)**
+   - `vitest`, `@vitest/coverage-v8`, `vite-tsconfig-paths` installieren.
+   - `vitest.config.ts` mit Test-Match auf `tests/unit/**/*.test.ts`.
+   - `npm run test`, `npm run test:cov` Scripts.
+
+2. **Unit-Tests Helper (3 h)**
+   - 1 Spec pro Helper in `tests/unit/`.
+   - Coverage-Threshold global 70 %, lib/* 80 %.
+
+3. **In-Memory-DB-Helper (1 h)**
+   - `tests/utils/db.ts`: erstellt eine frische SQLite-Datei pro Test,
+     ruft `getDb()` mit `DB_PATH` auf eine Tempdir.
+   - `seedTestUser()`, `seedTestLink()` als Convenience.
+
+4. **Integration-Tests (3 h)**
+   - 6–8 Specs gegen Server-Actions und API-Routes.
+   - Auth-Mock via `vi.mock('@/auth', () => ({ auth: vi.fn() }))`.
+
+5. **E2E-Setup (3 h)**
+   - `playwright.config.ts` mit Dev-Server-Auto-Start.
+   - `@cucumber/cucumber` + Playwright-Bridge.
+   - Eigenes `tests/e2e/world.ts` für Page + DB.
+
+6. **Step-Definitions schreiben (4–6 h)**
+   - Common Steps: „ich bin als X angemeldet", „ich rufe URL auf",
+     „ich sehe Text Y".
+   - Pro Feature ggf. spezifische Steps (z. B. „Klick-Counter erhöht").
+
+7. **CI-Workflow (1 h)**
+   - `.github/workflows/test.yml`: Unit + Integration auf push/PR,
+     E2E nightly.
+   - Coverage-Report als Artifact.
+
+**Realistischer Gesamtaufwand: ~16–18 h**, verteilt auf 3–4 Sessions.
+
+#### Quality-Gates nach Vollausbau
+- Jeder PR: Unit + Integration grün, Coverage-Threshold gehalten.
+- Nightly: E2E grün auf Chromium.
+- BACKLOG-Features dürfen erst gemerged werden, wenn das jeweilige
+  Gherkin-Feature im `features/`-Ordner liegt **und** mindestens ein
+  Step-Definition-Stub existiert.
+
+---
+
+### Z. Next.js Major-Update auf 16.x
+
+**Ziel:** Sicherheits-Vulnerabilities (DoS via Image Optimizer, RSC
+Deserialization, HTTP request smuggling, …) schließen. Aktuell auf
+14.2.35 — alle gemeldeten CVEs sind erst in Next 16.2.6+ gefixt.
+
+**Risiko:** Major-Bump, mehrere Breaking Changes:
+- App Router-API-Anpassungen (z. B. params/searchParams als Promise
+  ist schon umgesetzt, gut)
+- OpenGraph-Image-API könnte sich geändert haben
+- Server-Actions: Default-Origin-Validation strikter
+- Middleware-Behavior bei Edge Runtime
+- `experimental.serverComponentsExternalPackages` evtl. umbenannt
+
+**Vorgehen:**
+1. Branch `next-16-upgrade`
+2. `npm install next@^16` + `eslint-config-next@^16`
+3. Build + smoke-test alle Routen
+4. Auth.js v5 prüft kompat mit Next 16 (sollte ok sein, ist beta-aktuell)
+5. Drizzle/Sliplane-Build durchziehen, prüfen
+6. PR + Review
+
+**Aufwand: ~4–6 h** mit Test-Pass und ggf. Migrations-Anpassungen.
+**Sollte gemacht werden bevor die App öffentlich für externe User
+geöffnet wird.**
+
+---
+
 ### D. Refactoring + Hardening (technische Schulden)
 
 **Ziel:** Die App ist organisch gewachsen. Bevor neue Features hinzukommen,
