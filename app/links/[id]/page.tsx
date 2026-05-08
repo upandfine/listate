@@ -65,7 +65,7 @@ export default async function LinkDetailPage({
   const isOwner = row.userId === session.user.id;
   if (!isAdmin && !isOwner) notFound();
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const trackingPath = row.slug ?? row.id;
   const trackingUrl = `${baseUrl}/t/${trackingPath}`;
   const expired = isExpired(row.expiresAt);

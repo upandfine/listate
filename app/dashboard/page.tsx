@@ -178,7 +178,7 @@ export default async function DashboardPage({
         .all()
     : [];
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
 
   return (
     <div className="space-y-6">

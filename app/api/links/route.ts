@@ -54,7 +54,7 @@ export async function GET(req: Request) {
     .orderBy(desc(links.createdAt))
     .all();
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   return NextResponse.json(
     rows.map((l) => ({ ...l, tracking_url: `${baseUrl}/t/${l.id}` }))
   );

@@ -51,14 +51,13 @@ const securityHeaders = [
 
 const nextConfig = {
   output: 'standalone',
-  experimental: {
-    serverComponentsExternalPackages: ['better-sqlite3'],
-    outputFileTracingIncludes: {
-      '/**': [
-        './node_modules/better-sqlite3/**/*',
-        './lib/blocklists/**/*',
-      ],
-    },
+  // Next 15+: aus experimental.* nach top-level gewandert.
+  serverExternalPackages: ['better-sqlite3'],
+  outputFileTracingIncludes: {
+    '/**': [
+      './node_modules/better-sqlite3/**/*',
+      './lib/blocklists/**/*',
+    ],
   },
   async headers() {
     return [

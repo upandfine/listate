@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     const trackingPath = created.slug ?? created.id;
     return NextResponse.json({
-      trackingUrl: `${getBaseUrl()}/t/${trackingPath}`,
+      trackingUrl: `${await getBaseUrl()}/t/${trackingPath}`,
       id: created.id,
       slug: created.slug,
       expiresAt: created.expiresAt,

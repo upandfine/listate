@@ -151,31 +151,35 @@ für jeden weiteren Pull-Request machen.
 
 ---
 
-### Z. Next.js Major-Update auf 16.x
+### ~~Z. Next.js Major-Update auf 16.x~~ (umgesetzt)
 
-**Ziel:** Sicherheits-Vulnerabilities (DoS via Image Optimizer, RSC
-Deserialization, HTTP request smuggling, …) schließen. Aktuell auf
-14.2.35 — alle gemeldeten CVEs sind erst in Next 16.2.6+ gefixt.
+Migration von Next 14.2.35 → 16.2.6 erfolgreich durchgeführt.
 
-**Risiko:** Major-Bump, mehrere Breaking Changes:
-- App Router-API-Anpassungen (z. B. params/searchParams als Promise
-  ist schon umgesetzt, gut)
-- OpenGraph-Image-API könnte sich geändert haben
-- Server-Actions: Default-Origin-Validation strikter
-- Middleware-Behavior bei Edge Runtime
-- `experimental.serverComponentsExternalPackages` evtl. umbenannt
+**Konkret angepasst:**
+- `experimental.serverComponentsExternalPackages` → top-level
+  `serverExternalPackages`
+- `experimental.outputFileTracingIncludes` → top-level
+  `outputFileTracingIncludes`
+- `headers()` aus `next/headers` ist async geworden →
+  `lib/baseUrl.ts` zu `async function getBaseUrl(): Promise<string>`,
+  alle 5 Aufrufer (`dashboard`, `links/[id]`, `templates`,
+  `api/links`, `api/create`) auf `await` umgestellt
+- Route-Handler-`params` ist jetzt Promise → `app/t/[id]/route.ts`
+  destrukturiert mit `const { id } = await params`
+- `middleware.ts` → `proxy.ts` (Next 16 File-Convention)
 
-**Vorgehen:**
-1. Branch `next-16-upgrade`
-2. `npm install next@^16` + `eslint-config-next@^16`
-3. Build + smoke-test alle Routen
-4. Auth.js v5 prüft kompat mit Next 16 (sollte ok sein, ist beta-aktuell)
-5. Drizzle/Sliplane-Build durchziehen, prüfen
-6. PR + Review
+**Verifiziert:**
+- Build sauber durch (23 Routen)
+- Dev-Server smoke-getestet: `/`, `/login`, `/api/health`,
+  `/datenschutz`, `/icon.svg`, `/robots.txt` antworten 200
+- Alle 6 Security-Header weiterhin auf jeder Antwort gesetzt
+- `npm audit`: High-Severity weg, nur noch moderate (transitive
+  Dev-Deps, akzeptabel)
 
-**Aufwand: ~4–6 h** mit Test-Pass und ggf. Migrations-Anpassungen.
-**Sollte gemacht werden bevor die App öffentlich für externe User
-geöffnet wird.**
+**Bekannte Restwarnung:** „Next.js inferred your workspace root" –
+weil das übergeordnete Verzeichnis `dev/evangelisation/` eine
+`package-lock.json` hat. Behebung via `turbopack.root` in
+`next.config.mjs` ist möglich, aber low-prio.
 
 ---
 

@@ -91,9 +91,9 @@ function buildHtml(link: Link): string {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   const db = getDb();
 
   // Lookup nach id ODER slug – damit /t/<random> und /t/<wunsch-slug>

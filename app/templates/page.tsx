@@ -27,7 +27,7 @@ export default async function TemplatesPage({
   const { created } = await searchParams;
   const isAdmin = session.user.role === 'admin';
   const db = getDb();
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
 
   const rows = db
     .select()
