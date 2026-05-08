@@ -57,6 +57,119 @@ personenbezogene IPs zu speichern.
 Non-Commercial, monatliches Update via Skript) → keine externe
 Abhängigkeit, keine Drittlands-Übermittlung.
 
+### D. Refactoring + Hardening (technische Schulden)
+
+**Ziel:** Die App ist organisch gewachsen. Bevor neue Features hinzukommen,
+einmal SOLID/Clean-Code-Audit + Quality-Gates installieren, damit die
+Wartbarkeit langfristig sauber bleibt.
+
+#### Konkrete Bausteine
+
+**1. Tests**
+- **Vitest** für Unit-Tests aufsetzen.
+- Mindest-Coverage 60 % auf `lib/` (Helper sind die kritischste Schicht):
+  - `lib/slug.ts`, `lib/tags.ts`, `lib/ttl.ts`, `lib/host.ts`
+  - `lib/createTrackingLink.ts` (Validation + Rate-Limit + OG-Mocks)
+  - `lib/resolveTemplateUrl.ts`, `lib/adultFilter.ts`, `lib/safeBrowsing.ts`
+- **Playwright** für End-to-End:
+  - Login (Dev-Bypass)
+  - Link erstellen → Dashboard zeigt ihn
+  - Link bearbeiten → URL-Wechsel zieht neues OG
+  - Vorlage anlegen + nutzen
+  - Account löschen
+- CI-Hook (GitHub Actions) der Tests bei jedem Push laufen lässt.
+
+**2. Strukturiertes Logging**
+- `pino` oder `winston` statt `console.error`. Je Request eine Trace-ID.
+- Alle Server-Action-Errors mit `logger.error({ user, action, err })`.
+- Sliplane/Caddy bekommt strukturierte JSON-Logs, ist später durchsuchbar.
+
+**3. TypeScript-Hygiene**
+- `tsconfig.json` um `noUnusedLocals`, `noUnusedParameters`,
+  `noImplicitOverride`, `noFallthroughCasesInSwitch` erweitern.
+- `any`/`unknown`-Casts auditieren (suchen, ersetzen wo möglich).
+- Komplexe Drizzle-Query-Returns in Domain-Types extrahieren
+  (`db/types.ts`).
+
+**4. Server-Actions vereinheitlichen**
+- Aktuell: manche werfen `Error`, andere `TrackingLinkError`, wieder
+  andere `redirect`en oder geben nichts zurück. Ein **einheitliches
+  ActionResult-Pattern** (`{ ok: true, data } | { ok: false, error }`)
+  vereinfacht Frontend-Behandlung.
+- **Zod**-Schemas für alle FormData-Inputs (`createTemplate`,
+  `updateLink`, `blockHost`, …). Killt eine ganze Klasse von Bugs.
+
+**5. Komponenten-Architektur**
+- `CreateLinkForm` und `EditLinkButton` haben überlappende
+  URL-/Slug-/Tags-Eingabe-Logik. Extrahieren in `LinkFormFields` (Shared
+  Component) – DRY-Prinzip.
+- Wiederverwendbare UI-Primitives (`<Button>`, `<Input>`, `<Modal>`,
+  `<Badge>`) statt überall Tailwind-Klassen-Wiederholung.
+- Shared Types nach `types/` (Link-Detail, ServerActionResult, …).
+
+**6. Datenbank-Hygiene**
+- Migrationen via `drizzle-kit generate` statt der manuellen
+  `ensureColumn`-Helper. Versionierte Migrations-Files unter `db/migrations/`.
+- Im Bootstrap nicht mehr „CREATE TABLE IF NOT EXISTS" inline,
+  sondern `migrate()`-Aufruf.
+- `WAL`-Aktivierung + `busy_timeout` bleiben im Bootstrap.
+
+**7. Performance**
+- OG-Bilder im Dashboard via Next.js `<Image>` mit Proxy-Loader (kein
+  direkter Fremd-Host-Hit beim Owner-Browser → Privacy + Performance).
+- Bundle-Analyse (`@next/bundle-analyzer`), ggf. `Heatmap`/Charts
+  via `dynamic()` lazy laden.
+
+**8. Security-Härtung**
+- **CSP-Header** im `next.config.mjs` (Content Security Policy).
+  Fokus: kein Inline-Script außer dem Auth.js-Cookie-Setter und
+  unserem Tracking-Redirect-Script.
+- **HSTS-Header**: `Strict-Transport-Security: max-age=63072000;
+  includeSubDomains`.
+- **X-Frame-Options: DENY** (Tracking-Vorschau-Frame eh nicht erwünscht).
+- **Referrer-Policy: strict-origin-when-cross-origin**.
+- Rate-Limit auch auf `/api/links` und `/api/export` (nicht nur Create).
+
+**9. Operationelles**
+- `/api/health`-Endpoint (200 OK + DB-Ping) für Sliplane-Healthcheck
+  und externe Uptime-Monitore.
+- Backup-Skript für SQLite (`sqlite3 ... .backup`) als Cron auf Sliplane,
+  Backup als Tarball ins Volume.
+- `.well-known/security.txt` für Vulnerability-Reports.
+
+**10. SOLID-Audit konkret**
+- **S**ingle Responsibility: aktuell ist `createTrackingLink` schon
+  gut zerlegt (validate / fetch / insert). Andere Stellen prüfen,
+  v. a. die `actions.ts`-Datei (1 große File mit 8 Actions) — splitten
+  nach Domain (`actions/links.ts`, `actions/templates.ts`,
+  `actions/admin.ts`, `actions/account.ts`).
+- **O**pen/Closed: Resolver-Pipeline (Block-Liste → Adult → Safe Browsing)
+  als Chain-of-Responsibility refaktorisieren. Neue Filter ohne
+  Änderung am Aufrufer einhängbar.
+- **L**iskov: keine offensichtlichen Verstöße.
+- **I**nterface Segregation: `Database`-Pass-Through-Args reduzieren –
+  Helper bekommen nur `db`, was sie brauchen, statt der ganzen Drizzle-
+  Instanz. (Eher kosmetisch.)
+- **D**ependency Inversion: Helper wie `safeBrowsing` und `resolveTemplateUrl`
+  hängen direkt am `fetch`-Global. Für Testbarkeit eine `HttpClient`-
+  Abstraktion injizieren.
+
+#### Reihenfolge-Empfehlung
+
+1. **Quick wins** (~2 h): tsconfig-Tightening, Health-Endpoint, CSP/HSTS-Header.
+2. **Tests** (~4 h): Vitest + 6 Lib-Specs, ein Playwright-Smoke.
+3. **Refactor** (~3 h): `actions.ts` splitten, `LinkFormFields`-Shared,
+   Zod-Validation für 2-3 Hauptactions.
+4. **Drizzle-Migrationen** (~1 h): `drizzle-kit generate` einführen,
+   `ensureColumn` deprecaten.
+5. **Logging** (~1 h): pino + Trace-IDs.
+
+Realistischer Gesamtaufwand: **~10–12 h** verteilt auf mehrere Sessions.
+Sollte gemacht werden, **bevor** Webhook/Geo/Multi-Domain dazukommen,
+weil die sonst auf wackelige Architektur aufsetzen.
+
+---
+
 ### C. Multi-Domain (eigene Tracking-Domain pro User)
 
 **Ziel:** User können statt `listate.de/t/abc` einen Link unter ihrer
