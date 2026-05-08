@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { auth, signIn } from '@/auth';
+import { auth, isDevBypassEnabled, signIn } from '@/auth';
 import { BrandTile } from '../components/BrandMark';
 import {
   FeatureCountIcon,
@@ -53,6 +53,33 @@ export default async function LoginPage({
           Mit Google anmelden
         </button>
       </form>
+
+      {isDevBypassEnabled && (
+        <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+            Lokale Entwicklung
+          </div>
+          <p className="text-xs text-amber-900">
+            DEV_AUTH_BYPASS ist aktiv. Dieser Login wird in Production
+            niemals angeboten.
+          </p>
+          <form
+            action={async () => {
+              'use server';
+              await signIn('dev-bypass', {
+                redirectTo: callbackUrl ?? '/',
+              });
+            }}
+          >
+            <button
+              type="submit"
+              className="w-full rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-700"
+            >
+              🧪 Als dev@listate.local einloggen
+            </button>
+          </form>
+        </div>
+      )}
 
       <ul className="space-y-3 text-sm text-neutral-700">
         <MiniFeature icon={<FeaturePreviewIcon />}>

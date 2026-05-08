@@ -1,9 +1,21 @@
 import Link from 'next/link';
-import { and, desc, eq, isNull, like, or, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  isNull,
+  like,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import { auth } from '@/auth';
 import { deleteLink } from '@/app/actions';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { CopyButton } from '@/app/components/CopyButton';
+import { EditLinkButton } from '@/app/components/EditLinkButton';
 import { QrButton } from '@/app/components/QrButton';
 import { ShareButton } from '@/app/components/ShareButton';
 import { Sparkline } from '@/app/components/Sparkline';
@@ -13,6 +25,16 @@ import { getBaseUrl } from '@/lib/baseUrl';
 import { getClickHistory } from '@/lib/sparkline';
 import { parseTags } from '@/lib/tags';
 import { isExpired } from '@/lib/ttl';
+
+const PAGE_SIZE = 25;
+const SORT_OPTIONS = ['newest', 'clicks', 'alpha'] as const;
+type SortOption = (typeof SORT_OPTIONS)[number];
+
+const SORT_LABELS: Record<SortOption, string> = {
+  newest: 'Neueste zuerst',
+  clicks: 'Meiste Klicks',
+  alpha: 'Alphabetisch',
+};
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +46,8 @@ export default async function DashboardPage({
     expired?: string;
     q?: string;
     tag?: string;
+    sort?: string;
+    page?: string;
   }>;
 }) {
   const session = await auth();
@@ -35,6 +59,12 @@ export default async function DashboardPage({
   const showExpired = sp.expired === '1';
   const search = (sp.q ?? '').trim();
   const tagFilter = (sp.tag ?? '').trim().toLowerCase();
+  const sort: SortOption = (SORT_OPTIONS as readonly string[]).includes(
+    sp.sort ?? ''
+  )
+    ? (sp.sort as SortOption)
+    : 'newest';
+  const requestedPage = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
   const db = getDb();
 
   const conditions: SQL<unknown>[] = [];
@@ -80,6 +110,29 @@ export default async function DashboardPage({
         ? conditions[0]
         : and(...conditions);
 
+  // Total-Count für Pagination
+  const totalRow = db
+    .select({ n: count() })
+    .from(links)
+    .where(where ?? sql`1 = 1`)
+    .get();
+  const total = totalRow?.n ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const orderBy = (() => {
+    switch (sort) {
+      case 'clicks':
+        return [desc(links.clickCount), desc(links.createdAt)];
+      case 'alpha':
+        return [asc(sql`COALESCE(LOWER(${links.ogTitle}), LOWER(${links.originalUrl}))`)];
+      case 'newest':
+      default:
+        return [desc(links.createdAt)];
+    }
+  })();
+
   const rows = db
     .select({
       id: links.id,
@@ -98,7 +151,9 @@ export default async function DashboardPage({
     .from(links)
     .leftJoin(users, eq(users.id, links.userId))
     .where(where)
-    .orderBy(desc(links.createdAt))
+    .orderBy(...orderBy)
+    .limit(PAGE_SIZE)
+    .offset(offset)
     .all();
 
   // Klick-Verlauf der letzten 14 Tage je Link, in einer Query.
@@ -190,6 +245,27 @@ export default async function DashboardPage({
             </div>
           )}
 
+          <div>
+            <label
+              htmlFor="sort"
+              className="block text-xs font-medium text-neutral-600"
+            >
+              Sortierung
+            </label>
+            <select
+              id="sort"
+              name="sort"
+              defaultValue={sort}
+              className="mt-1 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm shadow-sm"
+            >
+              {SORT_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {SORT_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <label className="flex items-center gap-2 pb-1.5 text-xs text-neutral-700">
             <input
               type="checkbox"
@@ -219,7 +295,7 @@ export default async function DashboardPage({
           <span className="text-neutral-500">Tags:</span>
           {tagFilter && (
             <Link
-              href={buildUrl({ q: search, expired: showExpired, user: userFilter })}
+              href={buildUrl({ q: search, expired: showExpired, user: userFilter, sort })}
               className="rounded-full bg-neutral-200 px-2.5 py-0.5 font-medium text-neutral-700 hover:bg-neutral-300"
             >
               × {tagFilter}
@@ -235,6 +311,7 @@ export default async function DashboardPage({
                   expired: showExpired,
                   user: userFilter,
                   tag: t,
+                  sort,
                 })}
                 className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-neutral-700 hover:border-brand hover:text-brand"
               >
@@ -262,7 +339,7 @@ export default async function DashboardPage({
               <li
                 key={link.id}
                 className={
-                  'overflow-hidden rounded-lg border bg-white shadow-sm ' +
+                  'rounded-lg border bg-white shadow-sm ' +
                   (expired
                     ? 'border-neutral-200 opacity-60'
                     : 'border-neutral-200')
@@ -274,7 +351,7 @@ export default async function DashboardPage({
                     <img
                       src={link.ogImage}
                       alt=""
-                      className="h-32 w-full flex-shrink-0 object-cover sm:h-auto sm:w-32"
+                      className="h-32 w-full flex-shrink-0 rounded-t-lg object-cover sm:h-auto sm:w-32 sm:rounded-l-lg sm:rounded-tr-none"
                     />
                   )}
 
@@ -381,8 +458,12 @@ export default async function DashboardPage({
                   </div>
 
                   {/* Klicks (mit Sparkline) + Aktionen */}
-                  <div className="flex items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-50 px-4 py-3 sm:flex-col sm:justify-center sm:border-l sm:border-t-0 sm:bg-transparent sm:px-5 sm:py-4">
-                    <div className="text-left sm:text-right">
+                  <div className="flex items-center justify-between gap-3 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-3 sm:flex-col sm:justify-center sm:rounded-b-none sm:rounded-r-lg sm:border-l sm:border-t-0 sm:bg-transparent sm:px-5 sm:py-4">
+                    <Link
+                      href={`/links/${link.id}`}
+                      className="text-left transition hover:opacity-80 sm:text-right"
+                      title="Statistik öffnen"
+                    >
                       <div className="text-2xl font-semibold leading-none tabular-nums text-neutral-900">
                         {link.clickCount}
                       </div>
@@ -394,35 +475,86 @@ export default async function DashboardPage({
                           <Sparkline data={series} />
                         </div>
                       )}
+                    </Link>
+                    <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+                      <EditLinkButton
+                        linkId={link.id}
+                        defaultUrl={link.originalUrl}
+                        defaultSlug={link.slug ?? null}
+                        defaultTags={(linkTags ?? []).join(', ')}
+                        hasExpiry={!!link.expiresAt}
+                      />
+                      <ConfirmButton
+                        formAction={deleteLink}
+                        hiddenFields={{ id: link.id }}
+                        buttonAriaLabel="Link löschen"
+                        buttonClassName="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+                        buttonLabel={
+                          <span className="flex items-center gap-1">
+                            <TrashIcon />
+                            Löschen
+                          </span>
+                        }
+                        title="Link wirklich löschen?"
+                        message={
+                          <>
+                            Damit verschwinden Tracking-URL, Klick-Zähler
+                            und Klick-Verlauf unwiderruflich. Die
+                            ursprüngliche Original-URL bleibt natürlich
+                            existieren.
+                          </>
+                        }
+                        confirmLabel="Endgültig löschen"
+                        danger
+                      />
                     </div>
-                    <ConfirmButton
-                      formAction={deleteLink}
-                      hiddenFields={{ id: link.id }}
-                      buttonAriaLabel="Link löschen"
-                      buttonClassName="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                      buttonLabel={
-                        <span className="flex items-center gap-1">
-                          <TrashIcon />
-                          Löschen
-                        </span>
-                      }
-                      title="Link wirklich löschen?"
-                      message={
-                        <>
-                          Damit verschwinden Tracking-URL, Klick-Zähler und
-                          Klick-Verlauf unwiderruflich. Die ursprüngliche
-                          Original-URL bleibt natürlich existieren.
-                        </>
-                      }
-                      confirmLabel="Endgültig löschen"
-                      danger
-                    />
                   </div>
                 </div>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {totalPages > 1 && (
+        <nav className="flex items-center justify-between gap-3 pt-2 text-sm">
+          <div className="text-xs text-neutral-500">
+            Seite {page} von {totalPages} · {total} Link
+            {total === 1 ? '' : 's'} insgesamt
+          </div>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link
+                href={buildUrl({
+                  q: search,
+                  expired: showExpired,
+                  user: userFilter,
+                  tag: tagFilter || undefined,
+                  sort,
+                  page: page - 1,
+                })}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-neutral-50"
+              >
+                ← Vorherige
+              </Link>
+            )}
+            {page < totalPages && (
+              <Link
+                href={buildUrl({
+                  q: search,
+                  expired: showExpired,
+                  user: userFilter,
+                  tag: tagFilter || undefined,
+                  sort,
+                  page: page + 1,
+                })}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-neutral-50"
+              >
+                Nächste →
+              </Link>
+            )}
+          </div>
+        </nav>
       )}
     </div>
   );
@@ -433,12 +565,16 @@ function buildUrl(params: {
   expired?: boolean;
   user?: string;
   tag?: string;
+  sort?: SortOption;
+  page?: number;
 }): string {
   const sp = new URLSearchParams();
   if (params.q) sp.set('q', params.q);
   if (params.expired) sp.set('expired', '1');
   if (params.user) sp.set('user', params.user);
   if (params.tag) sp.set('tag', params.tag);
+  if (params.sort && params.sort !== 'newest') sp.set('sort', params.sort);
+  if (params.page && params.page > 1) sp.set('page', String(params.page));
   const qs = sp.toString();
   return qs ? `/dashboard?${qs}` : '/dashboard';
 }

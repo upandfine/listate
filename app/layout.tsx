@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
+import { Toaster } from 'sonner';
 import { auth } from '@/auth';
 import { Header } from './components/Header';
 import './globals.css';
@@ -64,6 +65,15 @@ export default async function RootLayout({
   return (
     <html lang="de">
       <body className="flex min-h-screen flex-col">
+        <Toaster
+          position="top-right"
+          richColors
+          toastOptions={{
+            classNames: {
+              toast: 'border border-neutral-200',
+            },
+          }}
+        />
         <Header user={user} />
         <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
           {children}

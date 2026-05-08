@@ -8,13 +8,18 @@ import { getDb } from '@/db';
 import { blockedHosts, links, templates, users } from '@/db/schema';
 import {
   createTrackingLink,
+  fetchOg,
+  normalizeAndCheckSlug,
   TrackingLinkError,
+  validateTrackingUrl,
 } from '@/lib/createTrackingLink';
 import { normalizeHost } from '@/lib/host';
 import {
   resolveTemplateUrl,
   type ResolveResult,
 } from '@/lib/resolveTemplateUrl';
+import { normalizeTags, tagsToString } from '@/lib/tags';
+import { ttlToExpiresAt } from '@/lib/ttl';
 
 async function requireUser() {
   const session = await auth();
@@ -30,6 +35,83 @@ async function requireAdmin() {
     throw new Error('Nur Admins.');
   }
   return user;
+}
+
+export async function updateLink(formData: FormData) {
+  const user = await requireUser();
+  const id = String(formData.get('id') ?? '');
+  if (!id) throw new Error('Link-ID fehlt.');
+
+  const db = getDb();
+  const link = db.select().from(links).where(eq(links.id, id)).get();
+  if (!link) throw new Error('Link nicht gefunden.');
+
+  const isAdmin = user.role === 'admin';
+  if (link.userId !== user.id && !isAdmin) {
+    throw new Error('Keine Berechtigung.');
+  }
+
+  const newUrlRaw = String(formData.get('url') ?? '').trim();
+  const slugInput = String(formData.get('slug') ?? '').trim();
+  const tagsInput = String(formData.get('tags') ?? '');
+  const ttlInput = formData.get('ttl');
+  const ttlClear = formData.get('ttlClear') === 'on';
+
+  // Slug
+  const slug = normalizeAndCheckSlug(slugInput, id);
+
+  // Tags
+  const tags = normalizeTags(tagsInput);
+
+  // TTL: 'ttl' Wert (Preset) oder ttlClear (auf null setzen) oder unverändert lassen.
+  let expiresAt: string | null | undefined = undefined;
+  if (ttlClear) {
+    expiresAt = null;
+  } else if (typeof ttlInput === 'string' && ttlInput) {
+    expiresAt = ttlToExpiresAt(ttlInput);
+  }
+
+  // URL und OG
+  let originalUrl = link.originalUrl;
+  let ogTitle = link.ogTitle;
+  let ogDescription = link.ogDescription;
+  let ogImage = link.ogImage;
+  let ogSiteName = link.ogSiteName;
+
+  if (newUrlRaw && newUrlRaw !== link.originalUrl) {
+    let validated;
+    try {
+      validated = await validateTrackingUrl(newUrlRaw);
+    } catch (err) {
+      if (err instanceof TrackingLinkError) {
+        throw new Error(err.message);
+      }
+      throw err;
+    }
+    originalUrl = validated.url;
+    const og = await fetchOg(validated.url);
+    ogTitle = og.title;
+    ogDescription = og.description;
+    ogImage = og.image;
+    ogSiteName = og.siteName;
+  }
+
+  db.update(links)
+    .set({
+      originalUrl,
+      ogTitle,
+      ogDescription,
+      ogImage,
+      ogSiteName,
+      slug,
+      tags: tagsToString(tags),
+      ...(expiresAt !== undefined ? { expiresAt } : {}),
+    })
+    .where(eq(links.id, id))
+    .run();
+
+  revalidatePath('/dashboard');
+  revalidatePath(`/links/${id}`);
 }
 
 export async function deleteLink(formData: FormData) {

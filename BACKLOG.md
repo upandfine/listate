@@ -5,6 +5,91 @@ jeweils nochmal abgestimmt.
 
 ---
 
+## Vorgemerkt für später
+
+### A. Webhook bei jedem Klick
+
+**Ziel:** Externe Systeme (Slack, n8n, eigene Endpoints) bei jedem
+Tracking-Link-Klick informieren.
+
+**Skizze:**
+- Pro User optional eine Webhook-URL in den Settings hinterlegbar.
+- `/t/[id]` POSTet asynchron (fire-and-forget) ein JSON-Payload
+  `{ linkId, slug, originalUrl, clickedAt, userAgent? }` an die URL.
+- Optional: Signatur via `X-Listate-Signature` (HMAC-SHA256 mit
+  Webhook-Secret pro User), damit Empfänger validieren können.
+- Retries: 1× Wiederholung bei 5xx; sonst silent fail (kein User-Feedback).
+- Rate-Limit: max 1 Webhook-Call pro Klick, kein Buffering nötig
+  bei dem erwarteten Volumen.
+
+**Offene Fragen:**
+- Für welche Klicks? Nur Nicht-Crawler (= konsistent zu click_count)
+  oder alle? Vermutlich erstere.
+- Per-Link-Webhook oder pro User-Account? Pro User reicht für jetzt.
+
+### B. Geo-Tracking (datenschutzfreundlich)
+
+**Ziel:** Aggregierte Geo-Information (Land/Region) zu Klicks, ohne
+personenbezogene IPs zu speichern.
+
+**Skizze:**
+- Bei jedem Nicht-Crawler-Klick die anfragende IP gegen eine
+  GeoIP-Datenbank (MaxMind GeoLite2 lokal oder ipinfo.io API) auflösen.
+- **Nur das Ergebnis** (z. B. `country: 'DE', region: 'BW'`) im
+  `clicks`-Eintrag speichern. IP wird nicht persistiert.
+- Klick-Detailseite zeigt zusätzlich „Top-Länder/Regionen" als Liste.
+- Admin-Stats: Welt-Heatmap pro Land.
+
+**DSGVO-Punkte:**
+- Datenschutzerklärung muss erweitert werden:
+  „Beim Aufruf wird die IP-Adresse einmalig gegen eine
+   Geolocation-Datenbank aufgelöst und ausschließlich Land/Region
+   gespeichert. Die IP-Adresse selbst wird nicht persistiert."
+- Rechtsgrundlage: Art. 6 (1) f) DSGVO, berechtigtes Interesse an
+  aggregierten Reichweitenstatistiken.
+- AVV mit ipinfo.io o. Ä. nötig falls externe API; mit GeoLite2
+  lokal entfällt das.
+
+**Schema-Skizze:**
+- `clicks.country TEXT NULL`, `clicks.region TEXT NULL`.
+
+**Implementierungs-Empfehlung:** GeoLite2 lokal (kostenlos für
+Non-Commercial, monatliches Update via Skript) → keine externe
+Abhängigkeit, keine Drittlands-Übermittlung.
+
+### C. Multi-Domain (eigene Tracking-Domain pro User)
+
+**Ziel:** User können statt `listate.de/t/abc` einen Link unter ihrer
+eigenen Domain anbieten, z. B. `links.upandfine.de/t/abc`. Sieht
+vertrauenswürdiger aus, weil Empfänger die Marke kennen.
+
+**Skizze:**
+- Neue Tabelle `domains`: `id`, `user_id`, `host`, `verified_at`,
+  `created_at`.
+- User trägt in Settings einen Hostnamen ein (z. B.
+  `links.upandfine.de`). Listate zeigt einen Verifizierungs-Token,
+  den der User als TXT-Record in seiner DNS hinterlegt.
+- Verifizierungs-Job: ruft `dns.resolveTxt(host)` auf, prüft Token.
+- Ist der Host verifiziert, muss er noch CNAME auf `listate.de`
+  setzen, damit HTTPS-Traffic ankommt.
+- TLS: Sliplane oder vorgelagerter Proxy (Caddy) automatisches
+  Let's Encrypt für die Custom-Domain. Sliplane unterstützt das
+  — pro Domain manuelle Konfiguration nötig, ggf. API.
+- `/t/[id]`-Endpoint erkennt anhand des `Host`-Headers, von welcher
+  Domain die Anfrage kommt, und zeigt entsprechend (Funktion bleibt
+  identisch, nur Branding könnte später unterschiedlich sein).
+- Beim Erstellen eines Tracking-Links: Dropdown „auf welcher Domain
+  veröffentlichen?" mit allen verifizierten User-Domains plus
+  `listate.de` als Default.
+
+**Hauptaufwand:** TLS-Provisioning per Sliplane-API + DNS-Verifizierung
++ Domain-bezogenes Routing. Realistisch ein voller Tag Arbeit, plus
+laufender Support-Aufwand bei DNS-Problemen.
+
+**Hinweis:** Erst lohnenswert, wenn 5+ Nutzer eigene Domains wollen.
+
+---
+
 ## ~~1. Ablaufdatum für Tracking-Links~~ (umgesetzt)
 
 Implementiert in [`lib/ttl.ts`](lib/ttl.ts), `CreateLinkForm` (Selector mit

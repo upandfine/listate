@@ -21,13 +21,22 @@ export function QrButton({
 
   async function open() {
     if (!svg) {
-      const generatedSvg = await QRCode.toString(value, {
+      // SVG ohne explizite width/height generieren – wir lassen das SVG
+      // den Container füllen (siehe wrapping div). Der Renderer setzt
+      // sonst feste Pixelmaße, die aus dem Modal herausragen.
+      const rawSvg = await QRCode.toString(value, {
         type: 'svg',
         errorCorrectionLevel: 'M',
         margin: 2,
         color: { dark: '#1d284d', light: '#ffffff' },
-        width: 320,
       });
+      // width/height auf der <svg>-Wurzel entfernen, damit CSS greift.
+      // Beide Attribute separat strippen – Reihenfolge variiert je
+      // qrcode-Version, ein kombinierter Regex ist zu fragil.
+      const generatedSvg = rawSvg
+        .replace(/\swidth="[^"]*"/, '')
+        .replace(/\sheight="[^"]*"/, '');
+      // PNG mit höherer Auflösung für saubere Drucke.
       const generatedPng = await QRCode.toDataURL(value, {
         errorCorrectionLevel: 'M',
         margin: 2,
@@ -86,7 +95,7 @@ export function QrButton({
           <div className="flex justify-center rounded-md border border-neutral-200 bg-white p-3">
             {svg && (
               <div
-                className="h-64 w-64"
+                className="h-56 w-56 [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
                 dangerouslySetInnerHTML={{ __html: svg }}
               />
             )}

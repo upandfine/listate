@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { TTL_LABELS, TTL_PRESETS, type TtlPreset } from '@/lib/ttl';
 import { CopyButton } from './CopyButton';
 import { ShareButton } from './ShareButton';
@@ -28,7 +29,6 @@ export default function CreateLinkForm() {
   const [tags, setTags] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CreateResponse | null>(null);
 
   // Eingabe normalisieren: mitkopiertes http(s):// und führende Whitespace
@@ -42,7 +42,6 @@ export default function CreateLinkForm() {
     const trimmed = host.trim();
     if (!trimmed) return;
 
-    setError(null);
     setResult(null);
     setLoading(true);
 
@@ -65,8 +64,11 @@ export default function CreateLinkForm() {
       setHost('');
       setSlug('');
       setTags('');
+      toast.success('Tracking-Link erstellt');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      toast.error(
+        err instanceof Error ? err.message : 'Unbekannter Fehler'
+      );
     } finally {
       setLoading(false);
     }
@@ -218,12 +220,6 @@ export default function CreateLinkForm() {
           </div>
         )}
       </form>
-
-      {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {error}
-        </div>
-      )}
 
       {result && (
         <section className="space-y-4 rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">

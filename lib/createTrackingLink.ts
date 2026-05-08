@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import ogs from 'open-graph-scraper';
 import { getDb } from '@/db';
 import { blockedHosts, links } from '@/db/schema';
@@ -31,11 +31,24 @@ function pickImage(image: unknown): string | null {
 export class TrackingLinkError extends Error {
   constructor(
     message: string,
-    public status: 400 | 403 | 500
+    public status: 400 | 403 | 429 | 500
   ) {
     super(message);
     this.name = 'TrackingLinkError';
   }
+}
+
+/**
+ * Pro-Stunde-Limit für neue Links pro User. Schützt gegen versehentliche
+ * oder böswillige Floods.
+ */
+export const RATE_LIMIT_PER_HOUR = 60;
+
+export interface OgData {
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  siteName: string | null;
 }
 
 export interface CreateTrackingLinkResult {
@@ -44,64 +57,31 @@ export interface CreateTrackingLinkResult {
   url: string;
   expiresAt: string | null;
   tags: string[];
-  og: {
-    title: string | null;
-    description: string | null;
-    image: string | null;
-    siteName: string | null;
-  };
+  og: OgData;
 }
 
 /**
- * Validiert und erstellt einen Tracking-Link inkl. OG-Fetch und Block-Check.
- * Wirft `TrackingLinkError` mit passendem Status bei vorhersehbaren Problemen.
+ * Validiert die Ziel-URL gegen Schema, Block-Liste, Adult-Filter und
+ * Safe Browsing. Liefert die kanonisierte URL plus den normalisierten
+ * Hostnamen zurück.
  */
-export async function createTrackingLink(params: {
-  rawUrl: string;
-  userId: string;
-  expiresAt?: string | null;
-  slug?: string | null;
-  tags?: string | null;
-}): Promise<CreateTrackingLinkResult> {
-  const rawUrl = params.rawUrl.trim();
-  if (!rawUrl || !/^https:\/\//i.test(rawUrl)) {
+export async function validateTrackingUrl(
+  rawUrl: string
+): Promise<{ url: string; host: string }> {
+  const trimmed = rawUrl.trim();
+  if (!trimmed || !/^https:\/\//i.test(trimmed)) {
     throw new TrackingLinkError('Nur https-URLs sind erlaubt.', 400);
   }
 
-  // Slug-Validierung
-  let slug: string | null = null;
-  if (params.slug) {
-    const candidate = normalizeSlug(params.slug);
-    if (candidate) {
-      const result = validateSlug(candidate);
-      if (!result.ok) throw new TrackingLinkError(result.error, 400);
-      const existing = getDb()
-        .select({ id: links.id })
-        .from(links)
-        .where(eq(links.slug, candidate))
-        .get();
-      if (existing) {
-        throw new TrackingLinkError(
-          `Slug „${candidate}" ist bereits vergeben.`,
-          400
-        );
-      }
-      slug = candidate;
-    }
-  }
-
-  // Tag-Normalisierung
-  const tags = params.tags ? normalizeTags(params.tags) : [];
-
   let parsed: URL;
   try {
-    parsed = new URL(rawUrl);
+    parsed = new URL(trimmed);
   } catch {
     throw new TrackingLinkError('URL ist ungültig.', 400);
   }
   const url = parsed.toString();
-
   const host = normalizeHost(parsed.hostname);
+
   const blocked = getDb()
     .select()
     .from(blockedHosts)
@@ -116,7 +96,6 @@ export async function createTrackingLink(params: {
     );
   }
 
-  // Adult-Content-Filter via Hostliste (StevenBlack/hosts porn-only).
   if (isAdultHost(host)) {
     throw new TrackingLinkError(
       'Diese Domain ist als nicht-jugendfreier Inhalt gelistet und kann nicht verlinkt werden.',
@@ -124,9 +103,6 @@ export async function createTrackingLink(params: {
     );
   }
 
-  // Google Safe Browsing: bei aktiviertem Key wird die Ziel-URL gegen
-  // Threat-Lists geprüft. Bei Treffer (Phishing, Malware o.ä.) Insert
-  // verhindern. Wenn Service nicht erreichbar oder kein Key: durchlassen.
   const sb = await checkSafeBrowsing(url);
   if (!sb.safe && sb.threats) {
     throw new TrackingLinkError(
@@ -137,11 +113,20 @@ export async function createTrackingLink(params: {
     );
   }
 
-  let title: string | null = null;
-  let description: string | null = null;
-  let image: string | null = null;
-  let siteName: string | null = null;
+  return { url, host };
+}
 
+/**
+ * Holt OG-Daten der Zielseite. Bei Netzwerk- oder Parse-Fehlern werden
+ * leere Felder zurückgegeben – der Workflow soll dadurch nicht blockiert.
+ */
+export async function fetchOg(url: string): Promise<OgData> {
+  const data: OgData = {
+    title: null,
+    description: null,
+    image: null,
+    siteName: null,
+  };
   try {
     const { result, error } = await ogs({
       url,
@@ -154,16 +139,94 @@ export async function createTrackingLink(params: {
       },
     });
     if (!error && result) {
-      title = result.ogTitle ?? result.twitterTitle ?? null;
-      description =
+      data.title = result.ogTitle ?? result.twitterTitle ?? null;
+      data.description =
         result.ogDescription ?? result.twitterDescription ?? null;
-      image =
+      data.image =
         pickImage(result.ogImage) ?? pickImage(result.twitterImage) ?? null;
-      siteName = result.ogSiteName ?? null;
+      data.siteName = result.ogSiteName ?? null;
     }
   } catch {
-    // OG-Scraping ist optional; Link wird trotzdem gespeichert
+    // OG-Scraping ist optional; ignorieren.
   }
+  return data;
+}
+
+/**
+ * Prüft die User-spezifische Rate-Limit-Schranke. Wirft 429, wenn
+ * überschritten.
+ */
+export function enforceRateLimit(userId: string) {
+  const row = getDb()
+    .select({ n: sql<number>`COUNT(*)` })
+    .from(links)
+    .where(
+      and(
+        eq(links.userId, userId),
+        sql`${links.createdAt} > datetime('now', '-1 hour')`
+      )
+    )
+    .get();
+  const count = row?.n ?? 0;
+  if (count >= RATE_LIMIT_PER_HOUR) {
+    throw new TrackingLinkError(
+      `Du hast in der letzten Stunde ${RATE_LIMIT_PER_HOUR} Links erstellt – das ist die aktuelle Obergrenze. Bitte etwas später erneut versuchen.`,
+      429
+    );
+  }
+}
+
+/**
+ * Slug-Eingabe normalisieren, validieren und auf Eindeutigkeit prüfen.
+ * Optional kann eine `excludeLinkId` übergeben werden (für Edit-Flow,
+ * damit der eigene Link nicht als „bereits vergeben" gilt).
+ */
+export function normalizeAndCheckSlug(
+  slugInput: string | null | undefined,
+  excludeLinkId?: string
+): string | null {
+  if (!slugInput) return null;
+  const candidate = normalizeSlug(slugInput);
+  if (!candidate) return null;
+  const result = validateSlug(candidate);
+  if (!result.ok) throw new TrackingLinkError(result.error, 400);
+  const existingQuery = excludeLinkId
+    ? getDb()
+        .select({ id: links.id })
+        .from(links)
+        .where(and(eq(links.slug, candidate), ne(links.id, excludeLinkId)))
+    : getDb()
+        .select({ id: links.id })
+        .from(links)
+        .where(eq(links.slug, candidate));
+  const existing = existingQuery.get();
+  if (existing) {
+    throw new TrackingLinkError(
+      `Slug „${candidate}" ist bereits vergeben.`,
+      400
+    );
+  }
+  return candidate;
+}
+
+/**
+ * Validiert und erstellt einen Tracking-Link inkl. OG-Fetch und Block-Check.
+ * Wirft `TrackingLinkError` mit passendem Status bei vorhersehbaren Problemen.
+ */
+export async function createTrackingLink(params: {
+  rawUrl: string;
+  userId: string;
+  expiresAt?: string | null;
+  slug?: string | null;
+  tags?: string | null;
+}): Promise<CreateTrackingLinkResult> {
+  enforceRateLimit(params.userId);
+
+  const slug = normalizeAndCheckSlug(params.slug);
+  const tags = params.tags ? normalizeTags(params.tags) : [];
+
+  const { url } = await validateTrackingUrl(params.rawUrl);
+  const og = await fetchOg(url);
 
   let id: string;
   try {
@@ -182,10 +245,10 @@ export async function createTrackingLink(params: {
         id,
         userId: params.userId,
         originalUrl: url,
-        ogTitle: title,
-        ogDescription: description,
-        ogImage: image,
-        ogSiteName: siteName,
+        ogTitle: og.title,
+        ogDescription: og.description,
+        ogImage: og.image,
+        ogSiteName: og.siteName,
         expiresAt: params.expiresAt ?? null,
         slug,
         tags: tagsToString(tags),
@@ -203,6 +266,6 @@ export async function createTrackingLink(params: {
     url,
     expiresAt: params.expiresAt ?? null,
     tags,
-    og: { title, description, image, siteName },
+    og,
   };
 }

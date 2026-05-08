@@ -38,7 +38,10 @@ export function Header({ user }: { user: HeaderUser | null }) {
         { href: '/templates', label: 'Vorlagen' },
         { href: '/dashboard', label: 'Dashboard' },
         ...(isAdmin
-          ? [{ href: '/admin/blocked', label: 'Blockliste' }]
+          ? [
+              { href: '/admin/stats', label: 'Statistik' },
+              { href: '/admin/blocked', label: 'Blockliste' },
+            ]
           : []),
         { href: '/settings', label: 'Einstellungen' },
       ]
