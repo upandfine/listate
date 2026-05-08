@@ -63,8 +63,14 @@ export default async function RootLayout({
     : null;
 
   return (
-    <html lang="de">
-      <body className="flex min-h-screen flex-col">
+    // suppressHydrationWarning auf <html> + <body>, weil Browser-Extensions
+    // (LanguageTool, Grammarly, Dark-Reader, …) Marker-Attribute injizieren,
+    // die der Hydration-Reconciler sonst als Mismatch flaggt.
+    <html lang="de" suppressHydrationWarning>
+      <body
+        className="flex min-h-screen flex-col"
+        suppressHydrationWarning
+      >
         <Toaster
           position="top-right"
           richColors
