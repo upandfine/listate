@@ -37,81 +37,100 @@ async function requireAdmin() {
   return user;
 }
 
-export async function updateLink(formData: FormData) {
-  const user = await requireUser();
-  const id = String(formData.get('id') ?? '');
-  if (!id) throw new Error('Link-ID fehlt.');
+export type ActionResult =
+  | { ok: true }
+  | { ok: false; error: string };
 
-  const db = getDb();
-  const link = db.select().from(links).where(eq(links.id, id)).get();
-  if (!link) throw new Error('Link nicht gefunden.');
+export async function updateLink(formData: FormData): Promise<ActionResult> {
+  try {
+    const user = await requireUser();
+    const id = String(formData.get('id') ?? '');
+    if (!id) return { ok: false, error: 'Link-ID fehlt.' };
 
-  const isAdmin = user.role === 'admin';
-  if (link.userId !== user.id && !isAdmin) {
-    throw new Error('Keine Berechtigung.');
-  }
+    const db = getDb();
+    const link = db.select().from(links).where(eq(links.id, id)).get();
+    if (!link) return { ok: false, error: 'Link nicht gefunden.' };
 
-  const newUrlRaw = String(formData.get('url') ?? '').trim();
-  const slugInput = String(formData.get('slug') ?? '').trim();
-  const tagsInput = String(formData.get('tags') ?? '');
-  const ttlInput = formData.get('ttl');
-  const ttlClear = formData.get('ttlClear') === 'on';
-
-  // Slug
-  const slug = normalizeAndCheckSlug(slugInput, id);
-
-  // Tags
-  const tags = normalizeTags(tagsInput);
-
-  // TTL: 'ttl' Wert (Preset) oder ttlClear (auf null setzen) oder unverändert lassen.
-  let expiresAt: string | null | undefined = undefined;
-  if (ttlClear) {
-    expiresAt = null;
-  } else if (typeof ttlInput === 'string' && ttlInput) {
-    expiresAt = ttlToExpiresAt(ttlInput);
-  }
-
-  // URL und OG
-  let originalUrl = link.originalUrl;
-  let ogTitle = link.ogTitle;
-  let ogDescription = link.ogDescription;
-  let ogImage = link.ogImage;
-  let ogSiteName = link.ogSiteName;
-
-  if (newUrlRaw && newUrlRaw !== link.originalUrl) {
-    let validated;
-    try {
-      validated = await validateTrackingUrl(newUrlRaw);
-    } catch (err) {
-      if (err instanceof TrackingLinkError) {
-        throw new Error(err.message);
-      }
-      throw err;
+    const isAdmin = user.role === 'admin';
+    if (link.userId !== user.id && !isAdmin) {
+      return { ok: false, error: 'Keine Berechtigung.' };
     }
-    originalUrl = validated.url;
-    const og = await fetchOg(validated.url);
-    ogTitle = og.title;
-    ogDescription = og.description;
-    ogImage = og.image;
-    ogSiteName = og.siteName;
+
+    const newUrlInput = String(formData.get('url') ?? '').trim();
+    // Edit-Form zeigt "https://" als Präfix-Label, im Input steht aber nur
+    // der Host. Wenn kein Schema mitkommt, ergänzen wir es serverseitig –
+    // sonst schlägt jede Speicherung mit „Nur https-URLs sind erlaubt." fehl.
+    const newUrlRaw = newUrlInput
+      ? /^https?:\/\//i.test(newUrlInput)
+        ? newUrlInput
+        : `https://${newUrlInput}`
+      : '';
+    const slugInput = String(formData.get('slug') ?? '').trim();
+    const tagsInput = String(formData.get('tags') ?? '');
+    const ttlInput = formData.get('ttl');
+    const ttlClear = formData.get('ttlClear') === 'on';
+
+    // Slug-Validierung (kann TrackingLinkError werfen → fangen wir gleich)
+    const slug = normalizeAndCheckSlug(slugInput, id);
+
+    // Tags
+    const tags = normalizeTags(tagsInput);
+
+    // TTL: 'ttl' Wert (Preset) oder ttlClear (auf null setzen) oder unverändert lassen.
+    let expiresAt: string | null | undefined = undefined;
+    if (ttlClear) {
+      expiresAt = null;
+    } else if (typeof ttlInput === 'string' && ttlInput) {
+      expiresAt = ttlToExpiresAt(ttlInput);
+    }
+
+    // URL und OG
+    let originalUrl = link.originalUrl;
+    let ogTitle = link.ogTitle;
+    let ogDescription = link.ogDescription;
+    let ogImage = link.ogImage;
+    let ogSiteName = link.ogSiteName;
+
+    if (newUrlRaw && newUrlRaw !== link.originalUrl) {
+      const validated = await validateTrackingUrl(newUrlRaw);
+      originalUrl = validated.url;
+      const og = await fetchOg(validated.url);
+      ogTitle = og.title;
+      ogDescription = og.description;
+      ogImage = og.image;
+      ogSiteName = og.siteName;
+    }
+
+    db.update(links)
+      .set({
+        originalUrl,
+        ogTitle,
+        ogDescription,
+        ogImage,
+        ogSiteName,
+        slug,
+        tags: tagsToString(tags),
+        ...(expiresAt !== undefined ? { expiresAt } : {}),
+      })
+      .where(eq(links.id, id))
+      .run();
+
+    revalidatePath('/dashboard');
+    revalidatePath(`/links/${id}`);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof TrackingLinkError) {
+      return { ok: false, error: err.message };
+    }
+    if (err instanceof Error) {
+      console.error('[updateLink] unexpected error:', err);
+      return {
+        ok: false,
+        error: 'Speichern fehlgeschlagen – Details siehe Server-Log.',
+      };
+    }
+    return { ok: false, error: 'Unbekannter Fehler.' };
   }
-
-  db.update(links)
-    .set({
-      originalUrl,
-      ogTitle,
-      ogDescription,
-      ogImage,
-      ogSiteName,
-      slug,
-      tags: tagsToString(tags),
-      ...(expiresAt !== undefined ? { expiresAt } : {}),
-    })
-    .where(eq(links.id, id))
-    .run();
-
-  revalidatePath('/dashboard');
-  revalidatePath(`/links/${id}`);
 }
 
 export async function deleteLink(formData: FormData) {

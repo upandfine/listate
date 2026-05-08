@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, type MouseEvent } from 'react';
+import { toast } from 'sonner';
 import { updateLink } from '@/app/actions';
 import { TTL_LABELS, TTL_PRESETS, type TtlPreset } from '@/lib/ttl';
 
@@ -67,7 +68,12 @@ export function EditLinkButton({
       >
         <form
           action={async (formData) => {
-            await updateLink(formData);
+            const result = await updateLink(formData);
+            if (!result.ok) {
+              toast.error(result.error);
+              return;
+            }
+            toast.success('Link aktualisiert');
             close();
           }}
           className="space-y-4 p-6"
