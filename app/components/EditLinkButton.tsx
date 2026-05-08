@@ -26,6 +26,9 @@ export function EditLinkButton({
   const [tags, setTags] = useState(defaultTags);
   const [ttl, setTtl] = useState<'' | TtlPreset>('');
   const [ttlClear, setTtlClear] = useState(false);
+  // Fehler werden im Dialog inline angezeigt: ein <dialog> liegt in der
+  // Browser-Top-Layer, normale Toasts (sonner) bleiben darunter unsichtbar.
+  const [error, setError] = useState<string | null>(null);
 
   function open() {
     // Werte beim Öffnen frisch übernehmen (für den Fall, dass Server-State
@@ -35,6 +38,7 @@ export function EditLinkButton({
     setTags(defaultTags);
     setTtl('');
     setTtlClear(false);
+    setError(null);
     dialogRef.current?.showModal();
   }
 
@@ -68,9 +72,10 @@ export function EditLinkButton({
       >
         <form
           action={async (formData) => {
+            setError(null);
             const result = await updateLink(formData);
             if (!result.ok) {
-              toast.error(result.error);
+              setError(result.error);
               return;
             }
             toast.success('Link aktualisiert');
@@ -89,6 +94,15 @@ export function EditLinkButton({
               Klick-Statistiken bleiben am Link erhalten.
             </p>
           </header>
+
+          {error && (
+            <div
+              role="alert"
+              className="rounded-md border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent"
+            >
+              {error}
+            </div>
+          )}
 
           <div className="space-y-1">
             <label
