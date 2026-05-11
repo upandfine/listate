@@ -386,6 +386,76 @@ laufender Support-Aufwand bei DNS-Problemen.
 
 ---
 
+### F. OG-Scraper-User-Agent
+
+**Problem festgestellt am 11.05.2026:** Manche Seiten (z. B.
+united-domains.de) sniffen den User-Agent und liefern bei
+„ungewöhnlichen" Crawlern eine `Browser veraltet`-Fallback-Seite. Unser
+OG-Scraper sendet aktuell
+`Mozilla/5.0 (compatible; ListateBot/1.0; +https://listate.de/) AppleWebKit/537.36`
+(siehe [`lib/createTrackingLink.ts:137`](lib/createTrackingLink.ts)) und
+fängt sich darum „Ihr Browser ist veraltet…" als OG-Title.
+
+**Workaround heute:** User kann via [`PreviewOverrideButton`](app/components/PreviewOverrideButton.tsx)
+Titel/Beschreibung/Bild manuell überschreiben.
+
+**Saubere Optionen:**
+1. **WhatsApp-/Slack-Crawler-UA** — `WhatsApp/2.x`, `Slackbot 1.0`,
+   `facebookexternalhit/1.1`. Wird von fast allen Seiten akzeptiert,
+   weil sie für Social-Vorschauen optimiert sind. Leicht
+   grenzwertig (UA-Spoofing), aber wir ARE ja ein OG-Scraper.
+2. **Hybrid-Retry:** erst mit ehrlichem UA, bei verdächtiger Antwort
+   (HTTP 4xx oder Title-Muster „Browser veraltet"/„Update browser")
+   automatisch Retry mit aggressiverem UA.
+3. **Status quo + Override-UI** (aktuell).
+
+Aufwand: Option 1 = 5 min + Test. Option 2 = ~1 h + Tests.
+
+---
+
+### G. Detail-Beobachtungen aus der OG-Override-Session
+
+Kleine Punkte, die beim Bauen aufgefallen sind und keinen
+eigenen Feature-Block rechtfertigen.
+
+**G1. „Vorschau anpassen"-Button in der Create-Erfolgs-Card**
+Aktuell sieht der User die OG-Vorschau direkt nach dem Erzeugen, hat
+dort aber keinen Schnellzugriff zum Anpassen — er muss erst ins
+Dashboard wechseln. Quick Win: Button in
+[`app/components/CreateLinkForm.tsx`](app/components/CreateLinkForm.tsx)
+einfügen, der das gleiche Override-Modal öffnet. ~10 min.
+
+**G2. Race Condition beim Bild-Update**
+Schneller Doppel-Klick auf „Speichern" im Override-Modal: zweiter
+`uploadLinkImage`-Call sieht `link.customImagePath` noch leer (DB nicht
+reflektiert), Cleanup-Pfad greift nicht → ein verwaister File im
+Storage. Wahrscheinlichkeit gering, Schaden = 1 Datei pro Race-Window.
+Fix: Save-Button beim ersten Submit `disabled`, ODER serverseitig
+nach dem Update den vorigen Filename aus DB lesen statt aus Props.
+
+**G3. Dockerfile-HEALTHCHECK**
+Endpoint existiert (`/api/health`), aber Docker kennt ihn nicht — der
+Container-Daemon kann nicht selbst entscheiden, ob der Prozess gesund
+ist. Sliplane macht sein eigenes Healthchecking, also kein
+Live-Problem. Ergänzen für Konsistenz:
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
+```
+
+**G4. ESLint-Setup neu aufgleisen**
+`next lint` ist in Next 16 deprecated. `npm run lint` zeigt den
+interaktiven Setup-Prompt, der CI-Job würde daran scheitern. Lösung:
+ESLint 9 mit Flat-Config (`eslint.config.mjs`), `eslint-config-next`
+für Core-Web-Vitals-Regeln, im CI als Schritt 3a.
+
+**G5. npm audit: 7 moderate Warnings in transitiven Dev-Deps**
+Stand heute alle in `@esbuild-kit/*`, `drizzle-kit`, `esbuild`,
+`postcss`, `next-auth` — alles transitive bzw. Dev-Deps. Sollte
+nach jedem `npm update` neu geprüft werden. Kein aktuelles Risiko.
+
+---
+
 ## ~~1. Ablaufdatum für Tracking-Links~~ (umgesetzt)
 
 Implementiert in [`lib/ttl.ts`](lib/ttl.ts), `CreateLinkForm` (Selector mit
