@@ -4,6 +4,7 @@ data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm
+data/og-images/
 .env.local
 .env*.local
 .DS_Store
