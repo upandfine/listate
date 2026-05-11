@@ -22,6 +22,15 @@ import {
 const mocks = vi.hoisted(() => ({
   currentDb: null as null | unknown,
   ogsResult: null as null | { result: Record<string, unknown>; error: boolean },
+  /**
+   * Wenn gesetzt: liefere je nach User-Agent-Header unterschiedliche
+   * Mock-Antworten. Erlaubt Tests für den fetchOg-Hybrid-Retry.
+   * Keys: substring-match gegen den UA. Erste Treffer-Antwort gewinnt.
+   */
+  ogsResultByUa: null as null | Array<{
+    uaMatch: string;
+    result: { result: Record<string, unknown>; error: boolean };
+  }>,
   isAdult: false as boolean,
 }));
 
@@ -30,7 +39,19 @@ vi.mock('@/db', () => ({
 }));
 
 vi.mock('open-graph-scraper', () => ({
-  default: vi.fn(async () => mocks.ogsResult ?? { result: {}, error: true }),
+  default: vi.fn(
+    async (opts: {
+      url: string;
+      fetchOptions?: { headers?: Record<string, string> };
+    }) => {
+      if (mocks.ogsResultByUa) {
+        const ua = opts.fetchOptions?.headers?.['User-Agent'] ?? '';
+        const hit = mocks.ogsResultByUa.find((e) => ua.includes(e.uaMatch));
+        if (hit) return hit.result;
+      }
+      return mocks.ogsResult ?? { result: {}, error: true };
+    }
+  ),
 }));
 
 vi.mock('@/lib/adultFilter', () => ({
@@ -56,6 +77,7 @@ beforeEach(() => {
   h = createTestDb();
   mocks.currentDb = h.db;
   mocks.ogsResult = null;
+  mocks.ogsResultByUa = null;
   mocks.isAdult = false;
   vi.stubEnv('GOOGLE_SAFE_BROWSING_API_KEY', '');
   userId = seedUser(h.sqlite);
@@ -260,6 +282,120 @@ describe('fetchOg', () => {
       const og = await fetchOg('https://example.test');
       expect(og.image).toBe(expected[i]);
     }
+  });
+
+  // -------- Hybrid-UA-Retry-Verhalten (Feature F) ---------------------------
+
+  it('UA-Sniff-Fallback: erkennt "Browser veraltet"-Titel und retried mit Browser-UA', async () => {
+    mocks.ogsResultByUa = [
+      {
+        uaMatch: 'ListateBot',
+        result: {
+          error: false,
+          result: { ogTitle: 'Ihr Browser ist veraltet und wird nicht…' },
+        },
+      },
+      {
+        uaMatch: 'Chrome',
+        result: {
+          error: false,
+          result: {
+            ogTitle: 'Echtes Produkt',
+            ogDescription: 'Die wahre Beschreibung',
+            ogImage: 'https://example.test/real.png',
+          },
+        },
+      },
+    ];
+
+    const og = await fetchOg('https://example.test');
+
+    expect(og.title).toBe('Echtes Produkt');
+    expect(og.description).toBe('Die wahre Beschreibung');
+    expect(og.image).toBe('https://example.test/real.png');
+  });
+
+  it('keine Retry, wenn der erste Versuch sauber war', async () => {
+    // Wenn ogsResultByUa nicht gesetzt ist, faellt es auf ogsResult zurueck.
+    // Der ogs-Mock wird nur einmal aufgerufen.
+    mocks.ogsResult = {
+      error: false,
+      result: { ogTitle: 'Saubere Antwort', ogDescription: 'OK' },
+    };
+
+    const og = await fetchOg('https://example.test');
+
+    expect(og.title).toBe('Saubere Antwort');
+    expect(og.description).toBe('OK');
+  });
+
+  it('bleibt bei honest-Antwort, wenn Browser-Retry auch verdaechtig ist', async () => {
+    mocks.ogsResultByUa = [
+      {
+        uaMatch: 'ListateBot',
+        result: {
+          error: false,
+          result: { ogTitle: 'Browser is out of date' },
+        },
+      },
+      {
+        uaMatch: 'Chrome',
+        result: {
+          error: false,
+          result: { ogTitle: 'Update your browser please' },
+        },
+      },
+    ];
+
+    const og = await fetchOg('https://example.test');
+
+    // Honest-Antwort wird beibehalten, damit User per Override eingreifen kann.
+    expect(og.title).toBe('Browser is out of date');
+  });
+
+  it('Retry mit leerem Titel führt zur honest-Antwort zurück', async () => {
+    mocks.ogsResultByUa = [
+      {
+        uaMatch: 'ListateBot',
+        result: {
+          error: false,
+          result: { ogTitle: 'Unsupported browser detected' },
+        },
+      },
+      {
+        uaMatch: 'Chrome',
+        // Browser-UA bekommt auch nichts brauchbares; lieber den honest-Wert
+        // als gar nichts.
+        result: { error: true, result: {} },
+      },
+    ];
+
+    const og = await fetchOg('https://example.test');
+
+    expect(og.title).toBe('Unsupported browser detected');
+  });
+
+  it.each([
+    'Ihr Browser ist veraltet',
+    'Browser is out of date',
+    'Please update your browser',
+    'Please upgrade your browser',
+    'Unsupported browser',
+  ])('erkennt Pattern "%s" als verdaechtig', async (title) => {
+    mocks.ogsResultByUa = [
+      {
+        uaMatch: 'ListateBot',
+        result: { error: false, result: { ogTitle: title } },
+      },
+      {
+        uaMatch: 'Chrome',
+        result: { error: false, result: { ogTitle: 'OK – ECHTER Titel' } },
+      },
+    ];
+
+    const og = await fetchOg('https://example.test');
+
+    expect(og.title).toBe('OK – ECHTER Titel');
   });
 });
 

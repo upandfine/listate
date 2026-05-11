@@ -395,30 +395,24 @@ laufender Support-Aufwand bei DNS-Problemen.
 
 ---
 
-### F. OG-Scraper-User-Agent
+### ~~F. OG-Scraper-User-Agent~~ — umgesetzt (Hybrid-Retry)
 
-**Problem festgestellt am 11.05.2026:** Manche Seiten (z. B.
-united-domains.de) sniffen den User-Agent und liefern bei
-„ungewöhnlichen" Crawlern eine `Browser veraltet`-Fallback-Seite. Unser
-OG-Scraper sendet aktuell
-`Mozilla/5.0 (compatible; ListateBot/1.0; +https://listate.de/) AppleWebKit/537.36`
-(siehe [`lib/createTrackingLink.ts:137`](lib/createTrackingLink.ts)) und
-fängt sich darum „Ihr Browser ist veraltet…" als OG-Title.
+Implementiert in [`lib/createTrackingLink.ts`](lib/createTrackingLink.ts):
+- Erster Versuch mit ehrlichem `ListateBot/1.0`-UA. Höflich, sites die
+  Bots erlauben sehen wer wir sind.
+- Bei verdächtiger Antwort (OG-Title matched `/browser ist veraltet|
+  browser is out of date|update your browser|please upgrade your
+  browser|unsupported browser/i`) automatisch Retry mit Chrome-UA.
+- Wenn Browser-Retry NICHTS besseres liefert (auch verdächtig oder
+  leer), bleibt die honest-Antwort — User kann via
+  [`PreviewOverrideButton`](app/components/PreviewOverrideButton.tsx)
+  manuell setzen.
+- 9 Unit-Tests in
+  [`tests/integration/createTrackingLink.test.ts`](tests/integration/createTrackingLink.test.ts)
+  inkl. parametriertes Pattern-Set.
 
-**Workaround heute:** User kann via [`PreviewOverrideButton`](app/components/PreviewOverrideButton.tsx)
-Titel/Beschreibung/Bild manuell überschreiben.
-
-**Saubere Optionen:**
-1. **WhatsApp-/Slack-Crawler-UA** — `WhatsApp/2.x`, `Slackbot 1.0`,
-   `facebookexternalhit/1.1`. Wird von fast allen Seiten akzeptiert,
-   weil sie für Social-Vorschauen optimiert sind. Leicht
-   grenzwertig (UA-Spoofing), aber wir ARE ja ein OG-Scraper.
-2. **Hybrid-Retry:** erst mit ehrlichem UA, bei verdächtiger Antwort
-   (HTTP 4xx oder Title-Muster „Browser veraltet"/„Update browser")
-   automatisch Retry mit aggressiverem UA.
-3. **Status quo + Override-UI** (aktuell).
-
-Aufwand: Option 1 = 5 min + Test. Option 2 = ~1 h + Tests.
+Manuelle Verifikation mit `https://upandfine.de` und `https://www.united-domains.de`
+ausstehend — das wird sich beim nächsten Test-Link zeigen.
 
 ---
 

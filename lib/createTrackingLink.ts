@@ -119,8 +119,35 @@ export async function validateTrackingUrl(
 /**
  * Holt OG-Daten der Zielseite. Bei Netzwerk- oder Parse-Fehlern werden
  * leere Felder zurückgegeben – der Workflow soll dadurch nicht blockiert.
+ *
+ * **UA-Strategie (Hybrid):**
+ * 1. Erster Versuch mit ehrlichem ListateBot-UA. Höflich, identifizierbar.
+ * 2. Wenn die Antwort verdächtig nach „Browser veraltet"/„Update browser"
+ *    aussieht (UA-Sniffing der Quellseite), Retry mit Chrome-UA.
+ * 3. Das ist KEIN Cloaking-Spoofing: wir holen OG-Tags, die fuer
+ *    Social-Crawler ohnehin gedacht sind. Seiten, die uns ihre echten
+ *    OG-Tags verweigern, bekommen den Browser-UA serviert.
  */
-export async function fetchOg(url: string): Promise<OgData> {
+const HONEST_UA =
+  'Mozilla/5.0 (compatible; ListateBot/1.0; +https://listate.de/) AppleWebKit/537.36';
+const BROWSER_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+const SUSPICIOUS_TITLE_PATTERNS = [
+  /browser ist veraltet/i,
+  /browser is out of date/i,
+  /update your browser/i,
+  /please upgrade your browser/i,
+  /unsupported browser/i,
+];
+
+/** Heuristik: Sieht das OG-Ergebnis aus, als haetten wir eine UA-Sniff-Fallback-Seite bekommen? */
+function looksSuspicious(data: OgData): boolean {
+  if (!data.title) return false;
+  return SUSPICIOUS_TITLE_PATTERNS.some((re) => re.test(data.title!));
+}
+
+async function fetchOgWithUa(url: string, userAgent: string): Promise<OgData> {
   const data: OgData = {
     title: null,
     description: null,
@@ -131,12 +158,7 @@ export async function fetchOg(url: string): Promise<OgData> {
     const { result, error } = await ogs({
       url,
       timeout: 5000,
-      fetchOptions: {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (compatible; ListateBot/1.0; +https://listate.de/) AppleWebKit/537.36',
-        },
-      },
+      fetchOptions: { headers: { 'User-Agent': userAgent } },
     });
     if (!error && result) {
       data.title = result.ogTitle ?? result.twitterTitle ?? null;
@@ -150,6 +172,17 @@ export async function fetchOg(url: string): Promise<OgData> {
     // OG-Scraping ist optional; ignorieren.
   }
   return data;
+}
+
+export async function fetchOg(url: string): Promise<OgData> {
+  const honest = await fetchOgWithUa(url, HONEST_UA);
+  if (!looksSuspicious(honest)) return honest;
+  // Retry mit Browser-UA. Wenn das Retry auch nichts besseres liefert,
+  // bleiben wir bei der honest-Antwort (User kann ueber Override
+  // manuell setzen).
+  const browser = await fetchOgWithUa(url, BROWSER_UA);
+  if (looksSuspicious(browser) || !browser.title) return honest;
+  return browser;
 }
 
 /**
