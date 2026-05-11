@@ -141,9 +141,21 @@ für jeden weiteren Pull-Request machen.
      gegenüber Produktion wird in Schritt 4 (Migration-Test)
      abgesichert.
 
-4. **Integration-Tests (3 h)**
-   - 6–8 Specs gegen Server-Actions und API-Routes.
-   - Auth-Mock via `vi.mock('@/auth', () => ({ auth: vi.fn() }))`.
+4. **Integration-Tests (3 h)** — **teilweise umgesetzt**
+   - ~~`lib/createTrackingLink.ts`~~: 27 Tests in
+     [`tests/integration/createTrackingLink.test.ts`](tests/integration/createTrackingLink.test.ts).
+     Mock-Strategie: `getDb()` via `vi.hoisted()`-Slot auf
+     In-Memory-DB, `open-graph-scraper` und `adultFilter` gemockt,
+     `GOOGLE_SAFE_BROWSING_API_KEY` leer (skip-Pfad).
+     Deckt validate (HTTPS-Check, Block-Liste, Adult-Filter, Safe
+     Browsing-Treffer), Rate-Limit (Pro-User, 1h-Fenster),
+     fetchOg (OG/Twitter-Fallback, Image-Varianten), Slug-Check
+     (Konflikt, Edit-Exclude) und den End-to-End-Pfad inkl.
+     FK-Violation-Wrapper.
+   - **Offen:** Server-Actions in `app/actions.ts` (createTemplate,
+     useTemplate, updateLink, deleteLink, blockHost, deleteAccount)
+     und API-Routes (`/api/create`, `/api/links`, `/api/export`,
+     `/api/health`). Auth-Mock via `vi.mock('@/auth', () => ({ auth: vi.fn() }))`.
 
 5. **E2E-Setup (3 h)**
    - `playwright.config.ts` mit Dev-Server-Auto-Start.

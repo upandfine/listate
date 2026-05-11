@@ -30,6 +30,7 @@ export default defineConfig({
         'lib/safeBrowsing.ts',
         'lib/resolveTemplateUrl.ts',
         'lib/adultFilter.ts',
+        'lib/createTrackingLink.ts',
       ],
       thresholds: {
         lines: 90,
