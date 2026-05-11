@@ -305,15 +305,22 @@ Wartbarkeit langfristig sauber bleibt.
 - Bundle-Analyse (`@next/bundle-analyzer`), ggf. `Heatmap`/Charts
   via `dynamic()` lazy laden.
 
-**8. Security-Härtung**
-- **CSP-Header** im `next.config.mjs` (Content Security Policy).
-  Fokus: kein Inline-Script außer dem Auth.js-Cookie-Setter und
-  unserem Tracking-Redirect-Script.
-- **HSTS-Header**: `Strict-Transport-Security: max-age=63072000;
-  includeSubDomains`.
-- **X-Frame-Options: DENY** (Tracking-Vorschau-Frame eh nicht erwünscht).
-- **Referrer-Policy: strict-origin-when-cross-origin**.
-- Rate-Limit auch auf `/api/links` und `/api/export` (nicht nur Create).
+**8. Security-Härtung** — überwiegend umgesetzt
+- ~~**CSP-Header**~~ aktiv in [`next.config.mjs`](next.config.mjs):
+  default-src 'self', frame-ancestors 'none', base-uri 'self',
+  object-src 'none'. `'unsafe-inline'` für Scripts/Styles ist
+  pragmatisch nötig (Next.js-Bootstrap + /t/[id]-Redirect-Script);
+  saubere Variante mit Nonce-Middleware steht im Refactor-Backlog.
+- ~~**HSTS-Header**~~ aktiv: `max-age=63072000; includeSubDomains; preload`.
+- ~~**X-Frame-Options: DENY**~~ aktiv.
+- ~~**Referrer-Policy: strict-origin-when-cross-origin**~~ aktiv.
+- ~~**X-Content-Type-Options: nosniff**~~ aktiv.
+- ~~**Permissions-Policy**~~ deaktiviert camera/microphone/geolocation/
+  payment/usb/magnetometer/gyroscope/accelerometer.
+- **Offen: Rate-Limit auch auf `/api/links` und `/api/export`** (nicht
+  nur Create). Aktuell hat nur `createTrackingLink` einen Pro-User-
+  Stunden-Limiter via DB-COUNT. Für Reads bräuchte es einen generischen
+  Request-Counter (Redis oder eigene SQL-Tabelle).
 
 **9. Operationelles**
 - `/api/health`-Endpoint (200 OK + DB-Ping) für Sliplane-Healthcheck
