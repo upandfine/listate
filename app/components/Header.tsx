@@ -17,10 +17,15 @@ export function Header({ user }: { user: HeaderUser | null }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  // Menü beim Routenwechsel automatisch schließen.
+  // Menü beim Routenwechsel automatisch schließen. Cascading-Render
+  // entsteht nur, wenn das Menue offen war — bewusst akzeptiert, weil
+  // die Alternative (Key-Reset-Pattern) strukturelle Aenderungen
+  // erfordern wuerde.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ESC schließt das Menü.
   useEffect(() => {

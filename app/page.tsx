@@ -45,7 +45,7 @@ function LandingPage() {
             href="#funktion"
             className="text-sm text-neutral-600 hover:text-neutral-900"
           >
-            Wie funktioniert's? ↓
+            Wie funktioniert&rsquo;s? ↓
           </a>
         </div>
       </section>
@@ -115,7 +115,7 @@ function LandingPage() {
       <section id="funktion" className="space-y-10 scroll-mt-12">
         <header className="space-y-2 text-center">
           <h2 className="text-2xl font-semibold text-brand sm:text-3xl">
-            So funktioniert's
+            So funktioniert&rsquo;s
           </h2>
           <p className="mx-auto max-w-xl text-neutral-600">
             Drei Schritte – mehr ist es nicht.

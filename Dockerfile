@@ -44,4 +44,10 @@ USER nextjs
 
 EXPOSE 3000
 
+# Healthcheck nutzt /api/health (200 OK + DB-Ping). wget ist im alpine-Image
+# vorhanden. --start-period gibt Next 15s zum Hochkommen, danach wird alle
+# 30s gechecked. 3 Fehlversuche in Folge -> Container gilt als unhealthy.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
+
 CMD ["node", "server.js"]

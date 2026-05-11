@@ -31,7 +31,6 @@ export function safeRedirectPath(
   if (/^\/+\w+:/i.test(trimmed)) return fallback;
 
   // Reguläre Steuerzeichen ablehnen
-  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f\x7f]/.test(trimmed)) return fallback;
 
   return trimmed;

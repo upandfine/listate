@@ -62,7 +62,12 @@ export function ShareButton({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [hasNativeShare, setHasNativeShare] = useState(false);
 
+  // Browser-Feature-Detection nach Hydration. Linter-Disable ist hier
+  // bewusst: `useState`-Lazy-Init wuerde im SSR auf `false` haengen
+  // bleiben (navigator nicht vorhanden). Der zweite Render passiert
+  // genau einmal pro Mount, kein Endlos-Loop.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasNativeShare(
       typeof navigator !== 'undefined' && typeof navigator.share === 'function'
     );

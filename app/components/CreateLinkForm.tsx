@@ -192,7 +192,7 @@ export default function CreateLinkForm() {
                 />
               </div>
               <p className="text-xs text-neutral-500">
-                Nur a–z, 0–9, „-", „_". 3–64 Zeichen. Leer lassen → zufällige Kurz-ID.
+                Nur a–z, 0–9, „-&rdquo;, „_&rdquo;. 3–64 Zeichen. Leer lassen → zufällige Kurz-ID.
               </p>
             </div>
 

@@ -247,7 +247,7 @@ export default function DatenschutzPage() {
           Diese Seite nutzt aus Sicherheitsgründen eine SSL- bzw.
           TLS-Verschlüsselung. Sie erkennen eine verschlüsselte
           Verbindung daran, dass die Adresszeile des Browsers von
-          „http://" auf „https://" wechselt.
+          „http://&rdquo; auf „https://&rdquo; wechselt.
         </p>
       </section>
 

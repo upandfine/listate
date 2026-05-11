@@ -433,21 +433,23 @@ Storage. Wahrscheinlichkeit gering, Schaden = 1 Datei pro Race-Window.
 Fix: Save-Button beim ersten Submit `disabled`, ODER serverseitig
 nach dem Update den vorigen Filename aus DB lesen statt aus Props.
 
-**G3. Dockerfile-HEALTHCHECK**
-Endpoint existiert (`/api/health`), aber Docker kennt ihn nicht — der
-Container-Daemon kann nicht selbst entscheiden, ob der Prozess gesund
-ist. Sliplane macht sein eigenes Healthchecking, also kein
-Live-Problem. Ergänzen für Konsistenz:
-```dockerfile
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
-```
+**~~G3. Dockerfile-HEALTHCHECK~~** — **umgesetzt**
+HEALTHCHECK-Direktive in [`Dockerfile`](Dockerfile) ergänzt. Polling
+auf `/api/health` alle 30 s, `start-period: 15s`, 3 Retries bis
+Container als unhealthy gilt. Sliplane macht weiterhin sein eigenes
+Healthchecking; Docker-CLI / Container-Orchestrator (z. B. lokal mit
+docker run) sehen den Status jetzt auch.
 
-**G4. ESLint-Setup neu aufgleisen**
-`next lint` ist in Next 16 deprecated. `npm run lint` zeigt den
-interaktiven Setup-Prompt, der CI-Job würde daran scheitern. Lösung:
-ESLint 9 mit Flat-Config (`eslint.config.mjs`), `eslint-config-next`
-für Core-Web-Vitals-Regeln, im CI als Schritt 3a.
+**~~G4. ESLint 9 Flat-Config~~** — **umgesetzt**
+[`eslint.config.mjs`](eslint.config.mjs) mit native Flat-Imports von
+`eslint-config-next/core-web-vitals` und `eslint-config-next/typescript`.
+`npm run lint` → `eslint .`. Im CI als 3. Schritt (zwischen Install
+und Typecheck) eingebaut. Beim ersten Lauf gefundene Issues alle
+gefixt: 5× unescaped Entities, 3× setState-in-Effect (mit
+Begruendungs-Kommentar disabled, gehoeren zum spaeteren D-Refactor),
+1× Unused-Disable-Direktive in safeRedirect.ts entfernt.
+`@typescript-eslint/no-unused-vars` mit `^_`-Pattern fuer absichtlich
+ungenutzte Args konfiguriert.
 
 **G5. npm audit: 7 moderate Warnings in transitiven Dev-Deps**
 Stand heute alle in `@esbuild-kit/*`, `drizzle-kit`, `esbuild`,

@@ -53,7 +53,7 @@ export default async function TemplatesPage({
       <header>
         <h1 className="text-2xl font-semibold">Vorlagen</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Vorausgewählte Ziel-URLs. Klick auf „Link erzeugen" legt einen
+          Vorausgewählte Ziel-URLs. Klick auf „Link erzeugen&rdquo; legt einen
           persönlichen Tracking-Link in deinem{' '}
           <Link href="/dashboard" className="underline hover:no-underline">
             Dashboard

@@ -120,7 +120,7 @@ export function TemplateForm() {
           </button>
         </div>
         <p className="text-xs text-neutral-500">
-          Wenn gesetzt, wird beim „Link erzeugen" die Quellseite geladen
+          Wenn gesetzt, wird beim „Link erzeugen&rdquo; die Quellseite geladen
           und der erste <code>&lt;a href&gt;</code> genommen, der dem
           Regex entspricht.
         </p>

@@ -53,11 +53,16 @@ export function QrButton({
     dialogRef.current?.close();
   }
 
-  // Reset wenn sich der Wert ändert (z. B. neuer Link)
+  // Reset wenn sich der Wert ändert (z. B. neuer Link).
+  // Cascading-Render ist hier bewusst: lieber ein Doppel-Render als
+  // ein nicht-getriggertes Reset. Alternative waere ein Key-Pattern
+  // im Parent, was strukturelle Aenderung waere.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setSvg('');
     setPngUrl('');
   }, [value]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <>
