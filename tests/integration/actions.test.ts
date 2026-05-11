@@ -9,6 +9,9 @@
  * - next/cache.revalidatePath als No-Op
  * - next/navigation.redirect wirft NEXT_REDIRECT; wir fangen das im Test
  */
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createTestDb,
@@ -76,6 +79,7 @@ vi.mock('@/lib/resolveTemplateUrl', () => ({
 
 import {
   blockHost,
+  clearLinkImageOverride,
   createTemplate,
   deleteAccount,
   deleteLink,
@@ -83,8 +87,19 @@ import {
   testTemplatePattern,
   unblockHost,
   updateLink,
+  updateLinkOverrides,
+  uploadLinkImage,
   useTemplate,
 } from '@/app/actions';
+
+// JPEG-Header fuer Magic-Bytes-Validation.
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
+// PNG-Header, fuer Tests, die einen "neuen Hash" erzwingen sollen.
+const PNG = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+]);
+
+let imgDir: string;
 
 let h: TestDbHandle;
 
@@ -104,12 +119,15 @@ beforeEach(() => {
   mocks.redirectCalls = [];
   mocks.resolveResult = null;
   vi.stubEnv('GOOGLE_SAFE_BROWSING_API_KEY', '');
+  imgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'listate-actions-'));
+  vi.stubEnv('OG_IMAGE_DIR', imgDir);
 });
 
 afterEach(() => {
   h.close();
   mocks.currentDb = null;
   vi.unstubAllEnvs();
+  fs.rmSync(imgDir, { recursive: true, force: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -677,5 +695,335 @@ describe('useTemplate', () => {
     await expect(useTemplate(fd({ templateId: 't1' }))).rejects.toThrow(
       'Pattern'
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// OG-Override-Actions
+// ---------------------------------------------------------------------------
+
+function fdWithFile(
+  entries: Record<string, string>,
+  fileField: string,
+  file: File
+): FormData {
+  const f = new FormData();
+  for (const [k, v] of Object.entries(entries)) f.append(k, v);
+  f.append(fileField, file);
+  return f;
+}
+
+function makeFile(buf: Uint8Array, name = 'preview.jpg'): File {
+  return new File([new Uint8Array(buf)], name, { type: 'image/jpeg' });
+}
+
+describe('updateLinkOverrides', () => {
+  it('ok=false ohne Session (im Generic-Catch verpackt — siehe Feature D)', async () => {
+    const res = await updateLinkOverrides(
+      fd({ id: 'lnk', customTitle: 'X' })
+    );
+    expect(res.ok).toBe(false);
+  });
+
+  it('ok=false bei nicht-existentem Link', async () => {
+    const me = seedUser(h.sqlite);
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    const res = await updateLinkOverrides(
+      fd({ id: 'ghost', customTitle: 'X' })
+    );
+    expect(res.ok).toBe(false);
+  });
+
+  it('ok=false bei fremdem Link (non-admin)', async () => {
+    const me = seedUser(h.sqlite, { id: 'me' });
+    const other = seedUser(h.sqlite, { id: 'other' });
+    seedLink(h.sqlite, { id: 'lnk', userId: other });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    const res = await updateLinkOverrides(
+      fd({ id: 'lnk', customTitle: 'X' })
+    );
+    expect(res).toEqual({
+      ok: false,
+      error: expect.stringContaining('Berechtigung'),
+    });
+  });
+
+  it('Owner darf Title/Description/SiteName ueberschreiben', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    const res = await updateLinkOverrides(
+      fd({
+        id: 'lnk',
+        customTitle: '  Mein Titel  ',
+        customDescription: 'Meine Beschreibung',
+        customSiteName: 'Meine Site',
+      })
+    );
+    expect(res).toEqual({ ok: true });
+
+    const row = h.sqlite
+      .prepare(`SELECT * FROM links WHERE id = ?`)
+      .get('lnk') as Record<string, unknown>;
+    expect(row.custom_title).toBe('Mein Titel');
+    expect(row.custom_description).toBe('Meine Beschreibung');
+    expect(row.custom_site_name).toBe('Meine Site');
+  });
+
+  it('leere Strings werden als NULL gespeichert (= Reset auf Scraper-Wert)', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    h.sqlite
+      .prepare(
+        `UPDATE links SET custom_title = ?, custom_description = ?, custom_site_name = ? WHERE id = ?`
+      )
+      .run('alt', 'alt', 'alt', 'lnk');
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    await updateLinkOverrides(
+      fd({
+        id: 'lnk',
+        customTitle: '',
+        customDescription: '   ',
+        customSiteName: '',
+      })
+    );
+
+    const row = h.sqlite
+      .prepare(`SELECT * FROM links WHERE id = ?`)
+      .get('lnk') as Record<string, unknown>;
+    expect(row.custom_title).toBeNull();
+    expect(row.custom_description).toBeNull();
+    expect(row.custom_site_name).toBeNull();
+  });
+
+  it('setzt image_hidden = 1 bei imageHidden=on, sonst 0', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    await updateLinkOverrides(fd({ id: 'lnk', imageHidden: 'on' }));
+    expect(
+      (
+        h.sqlite
+          .prepare(`SELECT image_hidden FROM links WHERE id = ?`)
+          .get('lnk') as { image_hidden: number }
+      ).image_hidden
+    ).toBe(1);
+
+    await updateLinkOverrides(fd({ id: 'lnk' }));
+    expect(
+      (
+        h.sqlite
+          .prepare(`SELECT image_hidden FROM links WHERE id = ?`)
+          .get('lnk') as { image_hidden: number }
+      ).image_hidden
+    ).toBe(0);
+  });
+
+  it('Admin darf fremde Links ueberschreiben', async () => {
+    const admin = seedUser(h.sqlite, { id: 'admin', role: 'admin' });
+    const other = seedUser(h.sqlite, { id: 'other' });
+    seedLink(h.sqlite, { id: 'lnk', userId: other });
+    mocks.session = { user: { id: admin, role: 'admin' } };
+
+    const res = await updateLinkOverrides(
+      fd({ id: 'lnk', customTitle: 'Admin-Edit' })
+    );
+    expect(res).toEqual({ ok: true });
+  });
+});
+
+describe('uploadLinkImage', () => {
+  it('ok=false ohne Session', async () => {
+    const res = await uploadLinkImage(
+      fdWithFile({ id: 'lnk' }, 'image', makeFile(JPEG))
+    );
+    expect(res.ok).toBe(false);
+  });
+
+  it('ok=false ohne Datei', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    const res = await uploadLinkImage(fd({ id: 'lnk' }));
+    expect(res).toEqual({
+      ok: false,
+      error: expect.stringContaining('Keine Datei'),
+    });
+  });
+
+  it('ok=false bei Garbage-Datei (Magic-Bytes failen)', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    const garbage = new Uint8Array(new TextEncoder().encode('<html>'));
+    const res = await uploadLinkImage(
+      fdWithFile({ id: 'lnk' }, 'image', makeFile(garbage))
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain('Format');
+  });
+
+  it('Happy Path: persistiert File und setzt custom_image_path', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    const res = await uploadLinkImage(
+      fdWithFile({ id: 'lnk' }, 'image', makeFile(JPEG))
+    );
+    expect(res).toEqual({ ok: true });
+
+    const row = h.sqlite
+      .prepare(`SELECT custom_image_path, image_hidden FROM links WHERE id = ?`)
+      .get('lnk') as { custom_image_path: string; image_hidden: number };
+    expect(row.custom_image_path).toMatch(/^lnk-[a-f0-9]{8}\.jpg$/);
+    expect(row.image_hidden).toBe(0);
+    expect(fs.existsSync(path.join(imgDir, row.custom_image_path))).toBe(true);
+  });
+
+  it('Re-Upload: alte Datei wird aufgeraeumt, neuer Hash kommt rein', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    await uploadLinkImage(
+      fdWithFile({ id: 'lnk' }, 'image', makeFile(JPEG))
+    );
+    const first = (
+      h.sqlite
+        .prepare(`SELECT custom_image_path FROM links WHERE id = ?`)
+        .get('lnk') as { custom_image_path: string }
+    ).custom_image_path;
+
+    await uploadLinkImage(
+      fdWithFile({ id: 'lnk' }, 'image', makeFile(PNG, 'preview.png'))
+    );
+    const second = (
+      h.sqlite
+        .prepare(`SELECT custom_image_path FROM links WHERE id = ?`)
+        .get('lnk') as { custom_image_path: string }
+    ).custom_image_path;
+
+    expect(second).not.toBe(first);
+    expect(fs.existsSync(path.join(imgDir, first))).toBe(false);
+    expect(fs.existsSync(path.join(imgDir, second))).toBe(true);
+  });
+
+  it('Upload setzt image_hidden zurueck auf 0', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    h.sqlite
+      .prepare(`UPDATE links SET image_hidden = 1 WHERE id = ?`)
+      .run('lnk');
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    await uploadLinkImage(
+      fdWithFile({ id: 'lnk' }, 'image', makeFile(JPEG))
+    );
+
+    expect(
+      (
+        h.sqlite
+          .prepare(`SELECT image_hidden FROM links WHERE id = ?`)
+          .get('lnk') as { image_hidden: number }
+      ).image_hidden
+    ).toBe(0);
+  });
+});
+
+describe('clearLinkImageOverride', () => {
+  it('setzt custom_image_path zurueck und loescht die Datei', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    // Erst hochladen
+    await uploadLinkImage(
+      fdWithFile({ id: 'lnk' }, 'image', makeFile(JPEG))
+    );
+    const filename = (
+      h.sqlite
+        .prepare(`SELECT custom_image_path FROM links WHERE id = ?`)
+        .get('lnk') as { custom_image_path: string }
+    ).custom_image_path;
+    expect(fs.existsSync(path.join(imgDir, filename))).toBe(true);
+
+    // Reset
+    const res = await clearLinkImageOverride(fd({ id: 'lnk' }));
+    expect(res).toEqual({ ok: true });
+
+    const row = h.sqlite
+      .prepare(`SELECT custom_image_path FROM links WHERE id = ?`)
+      .get('lnk') as { custom_image_path: string | null };
+    expect(row.custom_image_path).toBeNull();
+    expect(fs.existsSync(path.join(imgDir, filename))).toBe(false);
+  });
+
+  it('ist idempotent: zweites Clear crasht nicht', async () => {
+    const me = seedUser(h.sqlite);
+    seedLink(h.sqlite, { id: 'lnk', userId: me });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    const first = await clearLinkImageOverride(fd({ id: 'lnk' }));
+    const second = await clearLinkImageOverride(fd({ id: 'lnk' }));
+
+    expect(first).toEqual({ ok: true });
+    expect(second).toEqual({ ok: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deleteLink/deleteAccount – Image-Cleanup-Hooks
+// ---------------------------------------------------------------------------
+
+describe('deleteLink — Image-Cleanup', () => {
+  it('loescht das Override-Bild aus dem Storage', async () => {
+    const me = seedUser(h.sqlite);
+    // Erst ein Bild als File anlegen, dann den Link mit dem Filename verknuepfen.
+    const filename = 'lnk001-12345678.jpg';
+    fs.writeFileSync(path.join(imgDir, filename), JPEG);
+    seedLink(h.sqlite, {
+      id: 'lnk001',
+      userId: me,
+      customImagePath: filename,
+    });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    await deleteLink(fd({ id: 'lnk001' }));
+
+    expect(fs.existsSync(path.join(imgDir, filename))).toBe(false);
+  });
+});
+
+describe('deleteAccount — Image-Cleanup', () => {
+  it('raeumt alle Override-Bilder des Users auf, bevor cascade greift', async () => {
+    const me = seedUser(h.sqlite);
+    const fileA = 'lnkA00-aaaaaaaa.jpg';
+    const fileB = 'lnkB00-bbbbbbbb.png';
+    fs.writeFileSync(path.join(imgDir, fileA), JPEG);
+    fs.writeFileSync(path.join(imgDir, fileB), PNG);
+    seedLink(h.sqlite, {
+      id: 'lnkA00',
+      userId: me,
+      customImagePath: fileA,
+    });
+    seedLink(h.sqlite, {
+      id: 'lnkB00',
+      userId: me,
+      customImagePath: fileB,
+    });
+    mocks.session = { user: { id: me, role: 'user' } };
+
+    await deleteAccount();
+
+    expect(fs.existsSync(path.join(imgDir, fileA))).toBe(false);
+    expect(fs.existsSync(path.join(imgDir, fileB))).toBe(false);
   });
 });

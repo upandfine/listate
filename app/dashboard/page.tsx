@@ -22,6 +22,7 @@ import { Sparkline } from '@/app/components/Sparkline';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
+import { getDisplayOg } from '@/lib/displayOg';
 import { paginate, parsePageParam } from '@/lib/pagination';
 import { getClickHistory } from '@/lib/sparkline';
 import { parseTags } from '@/lib/tags';
@@ -89,7 +90,14 @@ export default async function DashboardPage({
     const needle = `%${search.toLowerCase()}%`;
     const searchCondition = or(
       like(sql`LOWER(${links.originalUrl})`, needle),
-      like(sql`LOWER(COALESCE(${links.ogTitle}, ''))`, needle),
+      like(
+        sql`LOWER(COALESCE(${links.customTitle}, ${links.ogTitle}, ''))`,
+        needle
+      ),
+      like(
+        sql`LOWER(COALESCE(${links.customDescription}, ${links.ogDescription}, ''))`,
+        needle
+      ),
       like(sql`LOWER(COALESCE(${links.slug}, ''))`, needle)
     );
     if (searchCondition) conditions.push(searchCondition);
@@ -125,7 +133,11 @@ export default async function DashboardPage({
       case 'clicks':
         return [desc(links.clickCount), desc(links.createdAt)];
       case 'alpha':
-        return [asc(sql`COALESCE(LOWER(${links.ogTitle}), LOWER(${links.originalUrl}))`)];
+        return [
+          asc(
+            sql`COALESCE(LOWER(${links.customTitle}), LOWER(${links.ogTitle}), LOWER(${links.originalUrl}))`
+          ),
+        ];
       case 'newest':
       default:
         return [desc(links.createdAt)];
@@ -138,7 +150,14 @@ export default async function DashboardPage({
       slug: links.slug,
       originalUrl: links.originalUrl,
       ogTitle: links.ogTitle,
+      ogDescription: links.ogDescription,
       ogImage: links.ogImage,
+      ogSiteName: links.ogSiteName,
+      customTitle: links.customTitle,
+      customDescription: links.customDescription,
+      customSiteName: links.customSiteName,
+      customImagePath: links.customImagePath,
+      imageHidden: links.imageHidden,
       clickCount: links.clickCount,
       createdAt: links.createdAt,
       expiresAt: links.expiresAt,
@@ -345,21 +364,24 @@ export default async function DashboardPage({
                 }
               >
                 <div className="flex flex-col sm:flex-row">
-                  {link.ogImage && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={link.ogImage}
-                      alt=""
-                      className="h-32 w-full flex-shrink-0 rounded-t-lg object-cover sm:h-auto sm:w-32 sm:rounded-l-lg sm:rounded-tr-none"
-                    />
-                  )}
+                  {(() => {
+                    const og = getDisplayOg(link);
+                    return og.image ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={og.image}
+                        alt=""
+                        className="h-32 w-full flex-shrink-0 rounded-t-lg object-cover sm:h-auto sm:w-32 sm:rounded-l-lg sm:rounded-tr-none"
+                      />
+                    ) : null;
+                  })()}
 
                   <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
                     {/* Headline + Original-URL */}
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-neutral-900">
-                          {link.ogTitle ?? link.originalUrl}
+                          {getDisplayOg(link).title ?? link.originalUrl}
                         </span>
                         {link.slug && (
                           <span

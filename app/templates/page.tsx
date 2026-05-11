@@ -9,6 +9,7 @@ import { ShareButton } from '@/app/components/ShareButton';
 import { getDb } from '@/db';
 import { links, templates } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
+import { getDisplayOg } from '@/lib/displayOg';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,33 +89,35 @@ export default async function TemplatesPage({
             <ShareButton value={`${baseUrl}/t/${justCreated.id}`} />
           </div>
 
-          {(justCreated.ogImage || justCreated.ogTitle) && (
-            <div className="overflow-hidden rounded-md border border-neutral-200">
-              {justCreated.ogImage && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={justCreated.ogImage}
-                  alt=""
-                  className="h-40 w-full object-cover"
-                />
-              )}
-              <div className="space-y-1 p-3">
-                {justCreated.ogSiteName && (
-                  <div className="text-xs uppercase tracking-wide text-neutral-500">
-                    {justCreated.ogSiteName}
+          {(() => {
+            const og = getDisplayOg(justCreated);
+            if (!og.image && !og.title) return null;
+            return (
+              <div className="overflow-hidden rounded-md border border-neutral-200">
+                {og.image && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={og.image}
+                    alt=""
+                    className="h-40 w-full object-cover"
+                  />
+                )}
+                <div className="space-y-1 p-3">
+                  {og.siteName && (
+                    <div className="text-xs uppercase tracking-wide text-neutral-500">
+                      {og.siteName}
+                    </div>
+                  )}
+                  <div className="font-medium text-neutral-900">
+                    {og.title ?? '(kein Titel)'}
                   </div>
-                )}
-                <div className="font-medium text-neutral-900">
-                  {justCreated.ogTitle ?? '(kein Titel)'}
+                  {og.description && (
+                    <p className="text-sm text-neutral-600">{og.description}</p>
+                  )}
                 </div>
-                {justCreated.ogDescription && (
-                  <p className="text-sm text-neutral-600">
-                    {justCreated.ogDescription}
-                  </p>
-                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
         </section>
       )}
 

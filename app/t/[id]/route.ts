@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq, or, sql } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { clicks, links, type Link } from '@/db/schema';
+import { getBaseUrl } from '@/lib/baseUrl';
+import { getDisplayOg } from '@/lib/displayOg';
 import { isExpired } from '@/lib/ttl';
 
 export const runtime = 'nodejs';
@@ -51,19 +53,26 @@ function metaTag(property: string, content: string | null): string {
   return `<meta ${attr}="${property}" content="${escapeAttr(content)}" />`;
 }
 
-function buildHtml(link: Link): string {
-  const title = link.ogTitle ?? link.originalUrl;
+function buildHtml(link: Link, baseUrl: string): string {
+  const og = getDisplayOg(link);
+  // Bilder muessen fuer Social-Crawler ABSOLUT sein. Externe Scraper-
+  // URLs bleiben wie sie sind; eigene Uploads (relativer Pfad) bekommen
+  // den App-Origin vorangestellt.
+  const absoluteImage =
+    og.image && og.image.startsWith('/') ? `${baseUrl}${og.image}` : og.image;
+
+  const title = og.title ?? link.originalUrl;
   const tags = [
-    metaTag('og:title', link.ogTitle),
-    metaTag('og:description', link.ogDescription),
-    metaTag('og:image', link.ogImage),
+    metaTag('og:title', og.title),
+    metaTag('og:description', og.description),
+    metaTag('og:image', absoluteImage),
     metaTag('og:url', link.originalUrl),
-    metaTag('og:site_name', link.ogSiteName),
+    metaTag('og:site_name', og.siteName),
     `<meta property="og:type" content="website" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
-    metaTag('twitter:title', link.ogTitle),
-    metaTag('twitter:description', link.ogDescription),
-    metaTag('twitter:image', link.ogImage),
+    metaTag('twitter:title', og.title),
+    metaTag('twitter:description', og.description),
+    metaTag('twitter:image', absoluteImage),
   ]
     .filter(Boolean)
     .join('\n  ');
@@ -132,7 +141,8 @@ export async function GET(
     db.insert(clicks).values({ linkId: link.id }).run();
   }
 
-  return new NextResponse(buildHtml(link), {
+  const baseUrl = await getBaseUrl();
+  return new NextResponse(buildHtml(link, baseUrl), {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',

@@ -140,6 +140,8 @@ export interface SeedLinkInput {
   tags?: string | null;
   expiresAt?: string | null;
   clickCount?: number;
+  /** Optionaler User-Override fuer das OG-Bild. */
+  customImagePath?: string | null;
 }
 
 export function seedLink(
@@ -150,8 +152,8 @@ export function seedLink(
   sqlite
     .prepare(
       `INSERT INTO links
-        (id, user_id, original_url, click_count, expires_at, slug, tags)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+        (id, user_id, original_url, click_count, expires_at, slug, tags, custom_image_path)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -160,7 +162,8 @@ export function seedLink(
       input.clickCount ?? 0,
       input.expiresAt ?? null,
       input.slug ?? null,
-      input.tags ?? null
+      input.tags ?? null,
+      input.customImagePath ?? null
     );
   return id;
 }

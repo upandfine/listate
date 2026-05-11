@@ -16,6 +16,7 @@ import {
   getHeatmap,
   getRecentClicks,
 } from '@/lib/clickStats';
+import { getDisplayOg } from '@/lib/displayOg';
 import { parseTags } from '@/lib/tags';
 import { isExpired } from '@/lib/ttl';
 
@@ -47,6 +48,11 @@ export default async function LinkDetailPage({
       ogDescription: links.ogDescription,
       ogImage: links.ogImage,
       ogSiteName: links.ogSiteName,
+      customTitle: links.customTitle,
+      customDescription: links.customDescription,
+      customSiteName: links.customSiteName,
+      customImagePath: links.customImagePath,
+      imageHidden: links.imageHidden,
       clickCount: links.clickCount,
       createdAt: links.createdAt,
       expiresAt: links.expiresAt,
@@ -103,7 +109,7 @@ export default async function LinkDetailPage({
           ← zurück zum Dashboard
         </Link>
         <h1 className="text-2xl font-semibold text-neutral-900">
-          {row.ogTitle ?? row.originalUrl}
+          {getDisplayOg(row).title ?? row.originalUrl}
         </h1>
         <p className="break-all text-xs text-neutral-500">
           <a

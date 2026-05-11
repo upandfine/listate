@@ -37,6 +37,7 @@ export default defineConfig({
         'app/api/links/route.ts',
         'app/api/export/route.ts',
         'app/api/health/route.ts',
+        'app/api/og-image/[file]/route.ts',
       ],
       thresholds: {
         // Branches absichtlich etwas niedriger: viele Defensive-Pfade

@@ -14,6 +14,7 @@ import {
   validateTrackingUrl,
 } from '@/lib/createTrackingLink';
 import { normalizeHost } from '@/lib/host';
+import { deleteImage, writeImage } from '@/lib/imageStorage';
 import {
   resolveTemplateUrl,
   type ResolveResult,
@@ -140,7 +141,11 @@ export async function deleteLink(formData: FormData) {
 
   const db = getDb();
   const link = db
-    .select({ id: links.id, userId: links.userId })
+    .select({
+      id: links.id,
+      userId: links.userId,
+      customImagePath: links.customImagePath,
+    })
     .from(links)
     .where(eq(links.id, id))
     .get();
@@ -153,6 +158,8 @@ export async function deleteLink(formData: FormData) {
   }
 
   db.delete(links).where(eq(links.id, id)).run();
+  // Override-Bild mit aufraeumen, falls vorhanden.
+  if (link.customImagePath) deleteImage(link.customImagePath);
   revalidatePath('/dashboard');
 }
 
@@ -213,9 +220,22 @@ export async function unblockHost(formData: FormData) {
 
 export async function deleteAccount() {
   const user = await requireUser();
+  const db = getDb();
+  // Zuerst die Override-Bilder dieses Users einsammeln, BEVOR wir
+  // cascadend loeschen — danach gibts die Zeilen nicht mehr.
+  const orphans = db
+    .select({ path: links.customImagePath })
+    .from(links)
+    .where(eq(links.userId, user.id))
+    .all()
+    .map((r) => r.path)
+    .filter((p): p is string => Boolean(p));
+
   // Cascade-Delete: alle Links + accounts + sessions des Users werden
   // durch ON DELETE CASCADE in den FK-Constraints automatisch entfernt.
-  getDb().delete(users).where(eq(users.id, user.id)).run();
+  db.delete(users).where(eq(users.id, user.id)).run();
+  for (const p of orphans) deleteImage(p);
+
   // signOut löscht das JWT-Cookie und redirected.
   const { signOut } = await import('@/auth');
   await signOut({ redirectTo: '/login' });
@@ -354,3 +374,156 @@ export async function useTemplate(formData: FormData) {
   // Redirect zur /templates mit just-created-Marker, damit Erfolgs-Card oben erscheint.
   redirect(`/templates?created=${created.id}`);
 }
+
+// ---------------------------------------------------------------------------
+// OG-Override-Actions: Text-Felder + Bild-Upload.
+// ---------------------------------------------------------------------------
+
+/**
+ * Liefert den DB-Link inkl. Berechtigung-Check.
+ * Wirft TrackingLinkError 403 bei fehlender Berechtigung, 404 bei
+ * nicht-existentem Link.
+ */
+async function requireOwnedLink(id: string) {
+  const user = await requireUser();
+  if (!id) throw new TrackingLinkError('Link-ID fehlt.', 400);
+  const link = getDb().select().from(links).where(eq(links.id, id)).get();
+  if (!link) throw new TrackingLinkError('Link nicht gefunden.', 400);
+  const isAdmin = user.role === 'admin';
+  if (link.userId !== user.id && !isAdmin) {
+    throw new TrackingLinkError('Keine Berechtigung.', 403);
+  }
+  return { user, link };
+}
+
+/**
+ * Setzt Text-Overrides (Title/Description/SiteName) und das image_hidden-Flag.
+ * Leere Strings werden als NULL gespeichert (= „nutze og_*-Wert").
+ */
+export async function updateLinkOverrides(
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const id = String(formData.get('id') ?? '');
+    const { link } = await requireOwnedLink(id);
+
+    const customTitle = sanitizeOverride(formData.get('customTitle'));
+    const customDescription = sanitizeOverride(
+      formData.get('customDescription')
+    );
+    const customSiteName = sanitizeOverride(formData.get('customSiteName'));
+    const imageHidden = formData.get('imageHidden') === 'on' ? 1 : 0;
+
+    getDb()
+      .update(links)
+      .set({ customTitle, customDescription, customSiteName, imageHidden })
+      .where(eq(links.id, link.id))
+      .run();
+
+    revalidatePath('/dashboard');
+    revalidatePath(`/links/${link.id}`);
+    revalidatePath(`/t/${link.id}`);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof TrackingLinkError) {
+      return { ok: false, error: err.message };
+    }
+    if (err instanceof Error) {
+      console.error('[updateLinkOverrides] unexpected:', err);
+      return { ok: false, error: 'Speichern fehlgeschlagen.' };
+    }
+    return { ok: false, error: 'Unbekannter Fehler.' };
+  }
+}
+
+function sanitizeOverride(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+/**
+ * Setzt das Override-Bild aus einer hochgeladenen Datei. Erwartet ein
+ * Feld `image` als File im FormData. Das Bild wird auf Magic-Bytes
+ * validiert und unter <DB_DIR>/og-images/<linkId>-<hash>.<ext> abgelegt.
+ *
+ * Das vorherige Override-Bild dieses Links wird automatisch ueberschrieben
+ * (siehe writeImage / previousFilename).
+ */
+export async function uploadLinkImage(
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const id = String(formData.get('id') ?? '');
+    const { link } = await requireOwnedLink(id);
+
+    const file = formData.get('image');
+    if (!(file instanceof File) || file.size === 0) {
+      return { ok: false, error: 'Keine Datei hochgeladen.' };
+    }
+    const buf = new Uint8Array(await file.arrayBuffer());
+
+    const result = writeImage({
+      linkId: link.id,
+      buf,
+      previousFilename: link.customImagePath,
+    });
+
+    getDb()
+      .update(links)
+      .set({ customImagePath: result.filename, imageHidden: 0 })
+      .where(eq(links.id, link.id))
+      .run();
+
+    revalidatePath('/dashboard');
+    revalidatePath(`/links/${link.id}`);
+    revalidatePath(`/t/${link.id}`);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof TrackingLinkError) {
+      return { ok: false, error: err.message };
+    }
+    if (err instanceof Error) {
+      console.error('[uploadLinkImage] unexpected:', err);
+      return { ok: false, error: err.message };
+    }
+    return { ok: false, error: 'Unbekannter Fehler.' };
+  }
+}
+
+/**
+ * Setzt das Override-Bild zurueck (custom_image_path = NULL,
+ * Datei wird geloescht). image_hidden bleibt unangetastet, weil
+ * das ein separater User-Wille ist.
+ */
+export async function clearLinkImageOverride(
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const id = String(formData.get('id') ?? '');
+    const { link } = await requireOwnedLink(id);
+
+    if (link.customImagePath) deleteImage(link.customImagePath);
+
+    getDb()
+      .update(links)
+      .set({ customImagePath: null })
+      .where(eq(links.id, link.id))
+      .run();
+
+    revalidatePath('/dashboard');
+    revalidatePath(`/links/${link.id}`);
+    revalidatePath(`/t/${link.id}`);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof TrackingLinkError) {
+      return { ok: false, error: err.message };
+    }
+    if (err instanceof Error) {
+      console.error('[clearLinkImageOverride] unexpected:', err);
+      return { ok: false, error: 'Loeschen fehlgeschlagen.' };
+    }
+    return { ok: false, error: 'Unbekannter Fehler.' };
+  }
+}
+
