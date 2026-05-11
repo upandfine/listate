@@ -267,12 +267,14 @@ Wartbarkeit langfristig sauber bleibt.
 - Alle Server-Action-Errors mit `logger.error({ user, action, err })`.
 - Sliplane/Caddy bekommt strukturierte JSON-Logs, ist später durchsuchbar.
 
-**3. TypeScript-Hygiene**
-- `tsconfig.json` um `noUnusedLocals`, `noUnusedParameters`,
-  `noImplicitOverride`, `noFallthroughCasesInSwitch` erweitern.
-- `any`/`unknown`-Casts auditieren (suchen, ersetzen wo möglich).
-- Komplexe Drizzle-Query-Returns in Domain-Types extrahieren
-  (`db/types.ts`).
+**3. TypeScript-Hygiene** — teilweise umgesetzt
+- ~~`tsconfig.json` um `noUnusedLocals`, `noUnusedParameters`,
+  `noImplicitOverride`, `noFallthroughCasesInSwitch` erweitern.~~
+  **Erledigt:** Alle vier Flags aktiv, keine neuen Errors aufgetreten —
+  ESLint (`@typescript-eslint/no-unused-vars` mit `^_`-Pattern) und
+  saubere Codebase machen die Erweiterung schmerzfrei.
+- **Offen:** `any`/`unknown`-Casts auditieren, Drizzle-Query-Returns
+  in Domain-Types extrahieren (`db/types.ts`).
 
 **4. Server-Actions vereinheitlichen**
 - Aktuell: manche werfen `Error`, andere `TrackingLinkError`, wieder
