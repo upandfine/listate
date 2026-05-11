@@ -115,17 +115,19 @@ für jeden weiteren Pull-Request machen.
    - Scripts `test`, `test:watch`, `test:cov`, `typecheck` in `package.json`.
 
 2. ~~**Unit-Tests Helper (3 h)**~~ — **umgesetzt**
-   - 72 Unit-Tests in `tests/unit/` für `slug`, `tags`, `ttl`, `host`,
-     `safeRedirect`.
+   - 105 Unit-Tests in `tests/unit/` für `slug`, `tags`, `ttl`, `host`,
+     `safeRedirect`, `safeBrowsing` (fetch-Mock), `resolveTemplateUrl`
+     (fetch-Mock), `adultFilter` (fs-Mock + Modul-Reset).
    - 19 Integration-Tests in `tests/integration/` für `sparkline` und
      `clickStats` (gegen In-Memory-SQLite).
-   - Coverage auf den 7 getesteten Helpern: **98.5 % Statements,
-     100 % Functions, 100 % Lines, 94.5 % Branches** (Restbranches sind
-     defensive Bounds-Guards).
+   - Coverage auf den 10 getesteten Helpern: **97.8 % Statements,
+     100 % Functions, 98.9 % Lines, 92.2 % Branches** (Restbranches
+     sind defensive Guards für malformed Input).
    - Threshold in [`vitest.config.ts`](vitest.config.ts) auf 90 % gesetzt.
-   - **Offen:** `resolveTemplateUrl`, `safeBrowsing`, `adultFilter`
-     (brauchen fetch-Mock), `createTrackingLink`, `generateId`
-     (Server-Actions-naher Layer, kommt in Schritt 4).
+   - **Offen:** `createTrackingLink` (orchestriert die obigen Filter +
+     OG-Scraper, gehört in Integration-Tests gegen In-Memory-DB),
+     `generateId` (braucht DB-Setup mit echtem `getDb()`). Kommt in
+     Schritt 4.
 
 3. ~~**In-Memory-DB-Helper (1 h)**~~ — **umgesetzt**
    - [`tests/utils/db.ts`](tests/utils/db.ts): `createTestDb()` liefert

@@ -14,8 +14,11 @@ export default defineConfig({
       // Bewusst nur die Helper, fuer die wir aktiv Tests halten.
       // - Pure Functions: slug, tags, ttl, host, safeRedirect
       // - Mit In-Memory-DB: sparkline, clickStats
-      // - Noch offen (kommen mit fetch-Mock): resolveTemplateUrl,
-      //   safeBrowsing, adultFilter, createTrackingLink, generateId.
+      // - Mit fetch-Mock: safeBrowsing, resolveTemplateUrl
+      // - Mit fs-Mock: adultFilter
+      // - Noch offen (kommen mit Integration-Tests in Schritt 4):
+      //   createTrackingLink (orchestriert die obigen), generateId
+      //   (braucht DB-Setup mit echtem getDb()).
       include: [
         'lib/slug.ts',
         'lib/tags.ts',
@@ -24,6 +27,9 @@ export default defineConfig({
         'lib/safeRedirect.ts',
         'lib/sparkline.ts',
         'lib/clickStats.ts',
+        'lib/safeBrowsing.ts',
+        'lib/resolveTemplateUrl.ts',
+        'lib/adultFilter.ts',
       ],
       thresholds: {
         lines: 90,
