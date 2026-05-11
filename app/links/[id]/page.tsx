@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { CopyButton } from '@/app/components/CopyButton';
 import { Heatmap } from '@/app/components/Heatmap';
+import { PreviewOverrideButton } from '@/app/components/PreviewOverrideButton';
 import { QrButton } from '@/app/components/QrButton';
 import { ShareButton } from '@/app/components/ShareButton';
 import { Sparkline } from '@/app/components/Sparkline';
@@ -147,6 +148,20 @@ export default async function LinkDetailPage({
           <CopyButton value={trackingUrl} />
           <ShareButton value={trackingUrl} />
           <QrButton value={trackingUrl} />
+          <PreviewOverrideButton
+            link={{
+              id: row.id,
+              ogTitle: row.ogTitle,
+              ogDescription: row.ogDescription,
+              ogImage: row.ogImage,
+              ogSiteName: row.ogSiteName,
+              customTitle: row.customTitle,
+              customDescription: row.customDescription,
+              customSiteName: row.customSiteName,
+              customImagePath: row.customImagePath,
+              imageHidden: row.imageHidden,
+            }}
+          />
         </div>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
           <span>

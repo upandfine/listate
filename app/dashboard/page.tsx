@@ -16,6 +16,7 @@ import { deleteLink } from '@/app/actions';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { CopyButton } from '@/app/components/CopyButton';
 import { EditLinkButton } from '@/app/components/EditLinkButton';
+import { PreviewOverrideButton } from '@/app/components/PreviewOverrideButton';
 import { QrButton } from '@/app/components/QrButton';
 import { ShareButton } from '@/app/components/ShareButton';
 import { Sparkline } from '@/app/components/Sparkline';
@@ -504,6 +505,20 @@ export default async function DashboardPage({
                         defaultSlug={link.slug ?? null}
                         defaultTags={(linkTags ?? []).join(', ')}
                         hasExpiry={!!link.expiresAt}
+                      />
+                      <PreviewOverrideButton
+                        link={{
+                          id: link.id,
+                          ogTitle: link.ogTitle,
+                          ogDescription: link.ogDescription,
+                          ogImage: link.ogImage,
+                          ogSiteName: link.ogSiteName,
+                          customTitle: link.customTitle,
+                          customDescription: link.customDescription,
+                          customSiteName: link.customSiteName,
+                          customImagePath: link.customImagePath,
+                          imageHidden: link.imageHidden,
+                        }}
                       />
                       <ConfirmButton
                         formAction={deleteLink}
