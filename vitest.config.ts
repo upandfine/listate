@@ -11,14 +11,19 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      // Bewusst nur die reinen Pure-Function-Helper. Alles, was fetch oder
-      // die DB benötigt, kommt mit Integration-Tests dazu (BACKLOG Feature E).
+      // Bewusst nur die Helper, fuer die wir aktiv Tests halten.
+      // - Pure Functions: slug, tags, ttl, host, safeRedirect
+      // - Mit In-Memory-DB: sparkline, clickStats
+      // - Noch offen (kommen mit fetch-Mock): resolveTemplateUrl,
+      //   safeBrowsing, adultFilter, createTrackingLink, generateId.
       include: [
         'lib/slug.ts',
         'lib/tags.ts',
         'lib/ttl.ts',
         'lib/host.ts',
         'lib/safeRedirect.ts',
+        'lib/sparkline.ts',
+        'lib/clickStats.ts',
       ],
       thresholds: {
         lines: 90,

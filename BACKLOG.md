@@ -114,19 +114,30 @@ für jeden weiteren Pull-Request machen.
      und `tests/integration/**/*.test.ts` im Include-Pfad.
    - Scripts `test`, `test:watch`, `test:cov`, `typecheck` in `package.json`.
 
-2. ~~**Unit-Tests Helper (3 h)**~~ — **umgesetzt (Pure-Function-Helper)**
-   - 72 Tests in `tests/unit/` für `slug`, `tags`, `ttl`, `host`,
-     `safeRedirect`. Coverage auf diesen 5 Files: 98.8 % Statements,
-     100 % Functions, 100 % Lines, 98.2 % Branches.
+2. ~~**Unit-Tests Helper (3 h)**~~ — **umgesetzt**
+   - 72 Unit-Tests in `tests/unit/` für `slug`, `tags`, `ttl`, `host`,
+     `safeRedirect`.
+   - 19 Integration-Tests in `tests/integration/` für `sparkline` und
+     `clickStats` (gegen In-Memory-SQLite).
+   - Coverage auf den 7 getesteten Helpern: **98.5 % Statements,
+     100 % Functions, 100 % Lines, 94.5 % Branches** (Restbranches sind
+     defensive Bounds-Guards).
    - Threshold in [`vitest.config.ts`](vitest.config.ts) auf 90 % gesetzt.
-   - **Offen:** `sparkline`, `clickStats` (brauchen In-Memory-DB →
-     Schritt 3), `resolveTemplateUrl`, `safeBrowsing`, `adultFilter`
-     (brauchen fetch-Mock).
+   - **Offen:** `resolveTemplateUrl`, `safeBrowsing`, `adultFilter`
+     (brauchen fetch-Mock), `createTrackingLink`, `generateId`
+     (Server-Actions-naher Layer, kommt in Schritt 4).
 
-3. **In-Memory-DB-Helper (1 h)**
-   - `tests/utils/db.ts`: erstellt eine frische SQLite-Datei pro Test,
-     ruft `getDb()` mit `DB_PATH` auf eine Tempdir.
-   - `seedTestUser()`, `seedTestLink()` als Convenience.
+3. ~~**In-Memory-DB-Helper (1 h)**~~ — **umgesetzt**
+   - [`tests/utils/db.ts`](tests/utils/db.ts): `createTestDb()` liefert
+     eine frische SQLite-Instanz im RAM (`:memory:`) mit dem produktiven
+     Schema (links, clicks, user, templates, blocked_hosts) plus
+     Indexen.
+   - Seed-Helper `seedUser`, `seedLink`, `seedClicks` mit
+     produktions-getreuen Timestamp-Formaten (`'YYYY-MM-DD HH:MM:SS'`).
+   - **Bewusst nicht** über `getDb()` aus `db/index.ts`, weil die
+     Filesystem-DB anlegt und zwischen Tests persistiert. Schema-Drift
+     gegenüber Produktion wird in Schritt 4 (Migration-Test)
+     abgesichert.
 
 4. **Integration-Tests (3 h)**
    - 6–8 Specs gegen Server-Actions und API-Routes.
