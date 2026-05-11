@@ -9,3 +9,5 @@ data/*.db-shm
 .DS_Store
 next-env.d.ts
 .claude/
+coverage/
+tsconfig.tsbuildinfo

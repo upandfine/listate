@@ -107,14 +107,21 @@ für jeden weiteren Pull-Request machen.
 
 #### Konkrete Bausteine (Reihenfolge)
 
-1. **Setup (1 h)**
-   - `vitest`, `@vitest/coverage-v8`, `vite-tsconfig-paths` installieren.
-   - `vitest.config.ts` mit Test-Match auf `tests/unit/**/*.test.ts`.
-   - `npm run test`, `npm run test:cov` Scripts.
+1. ~~**Setup (1 h)**~~ — **umgesetzt**
+   - `vitest` + `@vitest/coverage-v8` installiert (Vitest 4 nutzt nativ
+     `resolve.tsconfigPaths: true`, daher kein separates Plugin).
+   - [`vitest.config.ts`](vitest.config.ts) mit `tests/unit/**/*.test.ts`
+     und `tests/integration/**/*.test.ts` im Include-Pfad.
+   - Scripts `test`, `test:watch`, `test:cov`, `typecheck` in `package.json`.
 
-2. **Unit-Tests Helper (3 h)**
-   - 1 Spec pro Helper in `tests/unit/`.
-   - Coverage-Threshold global 70 %, lib/* 80 %.
+2. ~~**Unit-Tests Helper (3 h)**~~ — **umgesetzt (Pure-Function-Helper)**
+   - 72 Tests in `tests/unit/` für `slug`, `tags`, `ttl`, `host`,
+     `safeRedirect`. Coverage auf diesen 5 Files: 98.8 % Statements,
+     100 % Functions, 100 % Lines, 98.2 % Branches.
+   - Threshold in [`vitest.config.ts`](vitest.config.ts) auf 90 % gesetzt.
+   - **Offen:** `sparkline`, `clickStats` (brauchen In-Memory-DB →
+     Schritt 3), `resolveTemplateUrl`, `safeBrowsing`, `adultFilter`
+     (brauchen fetch-Mock).
 
 3. **In-Memory-DB-Helper (1 h)**
    - `tests/utils/db.ts`: erstellt eine frische SQLite-Datei pro Test,
@@ -135,12 +142,14 @@ für jeden weiteren Pull-Request machen.
      „ich sehe Text Y".
    - Pro Feature ggf. spezifische Steps (z. B. „Klick-Counter erhöht").
 
-7. **CI-Workflow (1 h)**
-   - `.github/workflows/test.yml`: Unit + Integration auf push/PR,
-     E2E nightly.
-   - Coverage-Report als Artifact.
+7. ~~**CI-Workflow (1 h)**~~ — **umgesetzt (Basis-Pipeline)**
+   - [`.github/workflows/ci.yml`](.github/workflows/ci.yml): bei jedem
+     Push/PR auf `main` → `typecheck`, `test:cov`, `build`.
+   - Coverage-Report wird als Artifact 14 Tage aufbewahrt.
+   - `concurrency`-Gruppe bricht ältere Runs auf demselben Branch ab.
+   - **Offen:** E2E-Job (nightly cron), sobald Schritt 5/6 stehen.
 
-**Realistischer Gesamtaufwand: ~16–18 h**, verteilt auf 3–4 Sessions.
+**Realistischer Restaufwand: ~10–12 h**, verteilt auf 2–3 weitere Sessions.
 
 #### Quality-Gates nach Vollausbau
 - Jeder PR: Unit + Integration grün, Coverage-Threshold gehalten.
