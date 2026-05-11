@@ -141,21 +141,44 @@ für jeden weiteren Pull-Request machen.
      gegenüber Produktion wird in Schritt 4 (Migration-Test)
      abgesichert.
 
-4. **Integration-Tests (3 h)** — **teilweise umgesetzt**
-   - ~~`lib/createTrackingLink.ts`~~: 27 Tests in
-     [`tests/integration/createTrackingLink.test.ts`](tests/integration/createTrackingLink.test.ts).
-     Mock-Strategie: `getDb()` via `vi.hoisted()`-Slot auf
-     In-Memory-DB, `open-graph-scraper` und `adultFilter` gemockt,
-     `GOOGLE_SAFE_BROWSING_API_KEY` leer (skip-Pfad).
-     Deckt validate (HTTPS-Check, Block-Liste, Adult-Filter, Safe
-     Browsing-Treffer), Rate-Limit (Pro-User, 1h-Fenster),
-     fetchOg (OG/Twitter-Fallback, Image-Varianten), Slug-Check
-     (Konflikt, Edit-Exclude) und den End-to-End-Pfad inkl.
-     FK-Violation-Wrapper.
-   - **Offen:** Server-Actions in `app/actions.ts` (createTemplate,
-     useTemplate, updateLink, deleteLink, blockHost, deleteAccount)
-     und API-Routes (`/api/create`, `/api/links`, `/api/export`,
-     `/api/health`). Auth-Mock via `vi.mock('@/auth', () => ({ auth: vi.fn() }))`.
+4. ~~**Integration-Tests (3 h)**~~ — **umgesetzt**
+   - **`lib/createTrackingLink.ts`** (27 Tests): validate (HTTPS,
+     Block-Liste, Adult-Filter, Safe Browsing), Rate-Limit, fetchOg
+     (OG/Twitter-Fallback, alle Image-Varianten), Slug-Check
+     (Konflikt, Edit-Exclude), End-to-End-Pfad inkl. FK-Violation-
+     Wrapper.
+   - **API-Routes** (38 Tests in 4 Files):
+     - `/api/create` (12): Auth, Body-Validation, Happy Path mit
+       Slug/TTL/Tags, TrackingLinkError-Statuses 400/403/500 werden
+       als JSON durchgereicht, Generic-500-Fallback.
+     - `/api/links` (8): Owner-Filter, expired-Toggle, Admin sieht
+       alle Links bzw. mit `?user=` gefiltert, tracking_url-Anhang.
+     - `/api/export` (4): JSON-Download-Header, Filename-Format,
+       eigene Links + Klicks vs. fremde.
+     - `/api/health` (3): 200-OK mit Latenz, 503 bei DB-Ping-Fehler.
+   - **Server-Actions in app/actions.ts** (42 Tests):
+     - `updateLink`: Auth, Berechtigung, Schema-Ergaenzung, TTL-Clear,
+       Slug-Konflikt vs. Edit-Exclude.
+     - `deleteLink`: Owner-only, Admin-Override.
+     - `blockHost`/`unblockHost`: Admin-Pflicht, Host-Normalisierung,
+       Upsert, `alsoDelete`-Pfad mit Bulk-Delete.
+     - `deleteAccount`: Cascade-Delete + signOut-Aufruf.
+     - `createTemplate`/`deleteTemplate`/`testTemplatePattern`:
+       Admin-Pflicht, Validierung von URL/Regex/Pattern.
+     - `useTemplate`: Mit/ohne Pattern, Resolver-Fehler,
+       redirect-Verhalten (`NEXT_REDIRECT`-Error wird im Test
+       gefangen).
+   - Mock-Stack je Test-Datei: `@/db`, `@/auth`, `next/cache`,
+     `next/navigation` (redirect imitiert `NEXT_REDIRECT`),
+     `open-graph-scraper`, `@/lib/adultFilter`, `@/lib/resolveTemplateUrl`.
+   - Coverage ueber jetzt 16 Files (10 lib + actions.ts + 4 API-Routes):
+     **96.94 % Statements, 100 % Functions, 98.07 % Lines, 90.25 %
+     Branches**. Threshold global 90 (Branches 88, weil viele
+     defensive Catch-Fallbacks).
+   - **Bekannte Schwachstelle entdeckt:** `updateLink` wrappt JEDEN
+     Error im Generic-Catch, auch „Nicht angemeldet" — Aufrufer kann
+     401-Fall nicht unterscheiden. Test bildet das Ist-Verhalten ab;
+     saubere Trennung steht in Feature D Punkt 4.
 
 5. **E2E-Setup (3 h)**
    - `playwright.config.ts` mit Dev-Server-Auto-Start.
