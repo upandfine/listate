@@ -29,6 +29,7 @@ export default defineConfig({
         'lib/resolveTemplateUrl.ts',
         'lib/adultFilter.ts',
         'lib/createTrackingLink.ts',
+        'lib/pagination.ts',
         'app/actions.ts',
         'app/api/create/route.ts',
         'app/api/links/route.ts',

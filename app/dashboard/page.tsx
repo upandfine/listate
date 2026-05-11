@@ -22,6 +22,7 @@ import { Sparkline } from '@/app/components/Sparkline';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
+import { paginate, parsePageParam } from '@/lib/pagination';
 import { getClickHistory } from '@/lib/sparkline';
 import { parseTags } from '@/lib/tags';
 import { isExpired } from '@/lib/ttl';
@@ -64,7 +65,7 @@ export default async function DashboardPage({
   )
     ? (sp.sort as SortOption)
     : 'newest';
-  const requestedPage = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
+  const requestedPage = parsePageParam(sp.page);
   const db = getDb();
 
   const conditions: SQL<unknown>[] = [];
@@ -117,9 +118,7 @@ export default async function DashboardPage({
     .where(where ?? sql`1 = 1`)
     .get();
   const total = totalRow?.n ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = Math.min(requestedPage, totalPages);
-  const offset = (page - 1) * PAGE_SIZE;
+  const { page, totalPages, offset } = paginate(total, requestedPage, PAGE_SIZE);
 
   const orderBy = (() => {
     switch (sort) {
