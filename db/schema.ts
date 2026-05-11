@@ -74,6 +74,15 @@ export const links = sqliteTable('links', {
   ogDescription: text('og_description'),
   ogImage: text('og_image'),
   ogSiteName: text('og_site_name'),
+  // User-Overrides: werden vor og_* angezeigt, wenn gesetzt. So bleibt
+  // ein zukuenftiger Re-Scrape moeglich, ohne den User-Override zu zerstoeren.
+  customTitle: text('custom_title'),
+  customDescription: text('custom_description'),
+  customSiteName: text('custom_site_name'),
+  /** Filename in <DB_DIR>/og-images/, Format <linkId>-<hash>.<ext>. */
+  customImagePath: text('custom_image_path'),
+  /** Explizit "kein Bild anzeigen", auch wenn og_image existiert. */
+  imageHidden: integer('image_hidden').notNull().default(0),
   clickCount: integer('click_count').notNull().default(0),
   createdAt: text('created_at')
     .notNull()

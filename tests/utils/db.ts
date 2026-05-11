@@ -44,18 +44,23 @@ function bootstrapTestSchema(sqlite: Database.Database) {
     );
 
     CREATE TABLE links (
-      id             TEXT PRIMARY KEY,
-      user_id        TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-      original_url   TEXT NOT NULL,
-      og_title       TEXT,
-      og_description TEXT,
-      og_image       TEXT,
-      og_site_name   TEXT,
-      click_count    INTEGER NOT NULL DEFAULT 0,
-      created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-      expires_at     TEXT,
-      slug           TEXT UNIQUE,
-      tags           TEXT
+      id                  TEXT PRIMARY KEY,
+      user_id             TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      original_url        TEXT NOT NULL,
+      og_title            TEXT,
+      og_description      TEXT,
+      og_image            TEXT,
+      og_site_name        TEXT,
+      custom_title        TEXT,
+      custom_description  TEXT,
+      custom_site_name    TEXT,
+      custom_image_path   TEXT,
+      image_hidden        INTEGER NOT NULL DEFAULT 0,
+      click_count         INTEGER NOT NULL DEFAULT 0,
+      created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at          TEXT,
+      slug                TEXT UNIQUE,
+      tags                TEXT
     );
 
     CREATE TABLE clicks (

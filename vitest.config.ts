@@ -30,6 +30,8 @@ export default defineConfig({
         'lib/adultFilter.ts',
         'lib/createTrackingLink.ts',
         'lib/pagination.ts',
+        'lib/displayOg.ts',
+        'lib/imageStorage.ts',
         'app/actions.ts',
         'app/api/create/route.ts',
         'app/api/links/route.ts',
