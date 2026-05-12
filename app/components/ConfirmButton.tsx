@@ -69,6 +69,13 @@ export function ConfirmButton({
         {buttonLabel}
       </button>
 
+      {/*
+        Backdrop-Click schliesst das Modal. a11y-Lint moniert das fehlende
+        Keyboard-Event — <dialog> handelt ESC aber nativ (siehe onCancel),
+        also haben Tastatur-Nutzer einen aequivalenten Pfad. Disable mit
+        Begruendung, kein Wrap mit role-Hack noetig.
+      */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <dialog
         ref={dialogRef}
         onClick={handleBackdropClick}

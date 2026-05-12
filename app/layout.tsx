@@ -71,6 +71,17 @@ export default async function RootLayout({
         className="flex min-h-screen flex-col"
         suppressHydrationWarning
       >
+        {/*
+          Skip-Link fuer Tastatur-/Screenreader-Nutzer: unsichtbar bis
+          Focus, springt direkt in den Hauptinhalt und ueberbrueckt
+          den Header.
+        */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-dark"
+        >
+          Zum Hauptinhalt springen
+        </a>
         <Toaster
           position="top-right"
           richColors
@@ -81,7 +92,11 @@ export default async function RootLayout({
           }}
         />
         <Header user={user} />
-        <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-4xl flex-1 px-6 py-10"
+        >
           {children}
         </main>
         <footer className="border-t border-neutral-200 bg-white">

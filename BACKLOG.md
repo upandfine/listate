@@ -440,6 +440,37 @@ ausstehend — das wird sich beim nächsten Test-Link zeigen.
 
 ---
 
+### H. Accessibility (ISO 25010 Usability)
+
+**~~H1. eslint-plugin-jsx-a11y hochfahren~~** — umgesetzt
+In [`eslint.config.mjs`](eslint.config.mjs) 28 WCAG-AA-relevante Regeln
+explizit auf `error`/`warn` gesetzt (alt-text, anchor-is-valid,
+aria-* family, heading-has-content, html-has-lang, label-has-
+associated-control, no-noninteractive-tabindex, role-has-required-
+aria-props, scope, etc.). Plugin ist via eslint-config-next
+registriert, wir verstaerken nur die Regeln (kein Plugin-Reimport,
+sonst Config-Conflict).
+
+**~~H2. Backdrop-Click-Modals: Disable mit Begruendung~~** — umgesetzt
+8 Warnings in ConfirmButton/EditLinkButton/PreviewOverrideButton/
+QrButton mit Disable-Kommentar entschaerft: `<dialog>` handelt ESC
+nativ (via `onCancel`), Tastatur-Nutzer haben aequivalenten Pfad.
+
+**~~H3. Skip-Link in app/layout.tsx~~** — umgesetzt
+`sr-only`-Skip-Link springt direkt in den Hauptinhalt, sichtbar bei
+Tab-Focus. `<main>` hat `id="main"` und `tabIndex={-1}` fuer den
+programmatischen Focus-Target.
+
+**Offen (eigene Session):**
+- Vollstaendiger axe-core-Run als Playwright-Test (kommt mit E5/6)
+- Manueller NVDA/VoiceOver-Check auf Hauptpfaden
+- Color-Contrast-Audit (vermutlich okay durch Tailwind-Defaults, aber
+  nicht systematisch geprueft)
+- Focus-Trap-Test fuer alle Modals (Browser-Default ist da, aber
+  ggf. nicht 100 % bei dynamischem Inhalt)
+
+---
+
 ### G. Detail-Beobachtungen aus der OG-Override-Session
 
 Kleine Punkte, die beim Bauen aufgefallen sind und keinen
