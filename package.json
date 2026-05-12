@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage"

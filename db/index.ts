@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import path from 'path';
 import fs from 'fs';
 import * as schema from './schema';
@@ -148,6 +149,14 @@ function ensureColumn(
   }
 }
 
+/**
+ * Default-Pfad fuer Drizzle-Migrations. In Tests / CI kann ueber
+ * `DRIZZLE_MIGRATIONS_FOLDER` ein eigener Pfad gesetzt werden.
+ */
+const MIGRATIONS_FOLDER =
+  process.env.DRIZZLE_MIGRATIONS_FOLDER ??
+  path.join(process.cwd(), 'drizzle');
+
 export function getDb(): DB {
   if (_db) return _db;
   const dir = path.dirname(DB_PATH);
@@ -157,5 +166,15 @@ export function getDb(): DB {
   const sqlite = new Database(DB_PATH);
   bootstrap(sqlite);
   _db = drizzle(sqlite, { schema });
+
+  // Drizzle-Migrations einspielen, falls vorhanden. Bei leerem
+  // Ordner ist das ein no-op. Bei fehlendem Ordner (z.B. im Test-
+  // Setup, das die DB komplett selbst aufbaut) auch.
+  // _journal.json muss existieren, sonst wirft migrate().
+  const journalPath = path.join(MIGRATIONS_FOLDER, 'meta', '_journal.json');
+  if (fs.existsSync(journalPath)) {
+    migrate(_db, { migrationsFolder: MIGRATIONS_FOLDER });
+  }
+
   return _db;
 }

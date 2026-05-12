@@ -307,12 +307,18 @@ Wartbarkeit langfristig sauber bleibt.
   `<Badge>`) statt überall Tailwind-Klassen-Wiederholung.
 - Shared Types nach `types/` (Link-Detail, ServerActionResult, …).
 
-**6. Datenbank-Hygiene**
-- Migrationen via `drizzle-kit generate` statt der manuellen
-  `ensureColumn`-Helper. Versionierte Migrations-Files unter `db/migrations/`.
-- Im Bootstrap nicht mehr „CREATE TABLE IF NOT EXISTS" inline,
-  sondern `migrate()`-Aufruf.
-- `WAL`-Aktivierung + `busy_timeout` bleiben im Bootstrap.
+**6. Datenbank-Hygiene** — teilweise umgesetzt
+- ~~Migrationen via `drizzle-kit generate` einrichten~~: erledigt.
+  [`drizzle.config.ts`](drizzle.config.ts), [`drizzle/`](drizzle/)-Ordner
+  mit README, `npm run db:generate` und `npm run db:check`.
+  `migrate()`-Aufruf nach `bootstrap()` in [`db/index.ts`](db/index.ts);
+  bei leerem Migrations-Ordner ist es ein no-op.
+- **Offen**: Bestehendes Bootstrap (CREATE TABLE IF NOT EXISTS +
+  ensureColumn) als „Initial-Seeder" beibehalten — drizzle-kit kommt
+  ab Migration 0001. Wenn das initiale Schema einmal vollständig in
+  Migrations gewandert ist (z. B. via synthetisches Catch-Up auf
+  Live-DB), kann `bootstrap()` durch einen leeren Marker ersetzt werden.
+- ~~`WAL`-Aktivierung + `busy_timeout`~~ bleiben im Bootstrap.
 
 **7. Performance**
 - OG-Bilder im Dashboard via Next.js `<Image>` mit Proxy-Loader (kein
