@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { TTL_LABELS, TTL_PRESETS, type TtlPreset } from '@/lib/ttl';
 import { CopyButton } from './CopyButton';
+import { PreviewOverrideButton } from './PreviewOverrideButton';
 import { ShareButton } from './ShareButton';
 
 interface CreateResponse {
@@ -245,6 +246,21 @@ export default function CreateLinkForm() {
                 <ShareButton
                   value={result.trackingUrl}
                   className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                />
+                <PreviewOverrideButton
+                  link={{
+                    id: result.id,
+                    ogTitle: result.og.title,
+                    ogDescription: result.og.description,
+                    ogImage: result.og.image,
+                    ogSiteName: result.og.siteName,
+                    // Frisch erstellt: keine Overrides.
+                    customTitle: null,
+                    customDescription: null,
+                    customSiteName: null,
+                    customImagePath: null,
+                    imageHidden: 0,
+                  }}
                 />
               </div>
             </div>

@@ -136,6 +136,12 @@ export function PreviewOverrideButton({ link }: { link: LinkPreviewInput }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Doppel-Klick-Guard: zwischen "Klick auf Submit" und "saving=true im
+    // naechsten Render" liegt ein React-Tick. Wenn dort ein zweiter
+    // Klick reinrutscht, wuerden zwei Uploads parallel laufen — der
+    // zweite ohne aktuellen customImagePath, also wuerde der erste
+    // Filename zum Orphan. Pruefen wir hier defensiv mit.
+    if (saving) return;
     setError(null);
     setSaving(true);
     try {
@@ -176,6 +182,7 @@ export function PreviewOverrideButton({ link }: { link: LinkPreviewInput }) {
   }
 
   async function handleResetImage() {
+    if (saving) return;
     setError(null);
     setSaving(true);
     try {

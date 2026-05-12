@@ -421,20 +421,17 @@ ausstehend — das wird sich beim nächsten Test-Link zeigen.
 Kleine Punkte, die beim Bauen aufgefallen sind und keinen
 eigenen Feature-Block rechtfertigen.
 
-**G1. „Vorschau anpassen"-Button in der Create-Erfolgs-Card**
-Aktuell sieht der User die OG-Vorschau direkt nach dem Erzeugen, hat
-dort aber keinen Schnellzugriff zum Anpassen — er muss erst ins
-Dashboard wechseln. Quick Win: Button in
-[`app/components/CreateLinkForm.tsx`](app/components/CreateLinkForm.tsx)
-einfügen, der das gleiche Override-Modal öffnet. ~10 min.
+**~~G1. „Vorschau anpassen"-Button in der Create-Erfolgs-Card~~** — umgesetzt
+PreviewOverrideButton in [`app/components/CreateLinkForm.tsx`](app/components/CreateLinkForm.tsx)
+direkt neben Copy + Share platziert. Frisch erstellte Links haben naturgemäß
+keine Override-Werte, daher mit `null`/`0` initialisiert.
 
-**G2. Race Condition beim Bild-Update**
-Schneller Doppel-Klick auf „Speichern" im Override-Modal: zweiter
-`uploadLinkImage`-Call sieht `link.customImagePath` noch leer (DB nicht
-reflektiert), Cleanup-Pfad greift nicht → ein verwaister File im
-Storage. Wahrscheinlichkeit gering, Schaden = 1 Datei pro Race-Window.
-Fix: Save-Button beim ersten Submit `disabled`, ODER serverseitig
-nach dem Update den vorigen Filename aus DB lesen statt aus Props.
+**~~G2. Race Condition beim Bild-Update~~** — entschärft
+Defensiver `if (saving) return;`-Guard am Anfang von `handleSubmit` und
+`handleResetImage` in [`PreviewOverrideButton`](app/components/PreviewOverrideButton.tsx).
+Der Button selbst ist via `disabled={saving}` schon geschützt; der
+Function-Guard schließt das React-Tick-Zeitfenster zwischen Click und
+State-Update.
 
 **~~G3. Dockerfile-HEALTHCHECK~~** — **umgesetzt**
 HEALTHCHECK-Direktive in [`Dockerfile`](Dockerfile) ergänzt. Polling
