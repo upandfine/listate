@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { deleteTemplateFormAction } from '@/app/actions';
+import { deleteTemplateFormAction } from '@/app/actions/templates';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { getDb } from '@/db';
 import { templates, users } from '@/db/schema';

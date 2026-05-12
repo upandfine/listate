@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { blockHostFormAction, unblockHostFormAction } from '@/app/actions';
+import {
+  blockHostFormAction,
+  unblockHostFormAction,
+} from '@/app/actions/admin';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { getDb } from '@/db';
 import { blockedHosts, users } from '@/db/schema';

@@ -2,7 +2,7 @@
 
 import { useRef, useState, type MouseEvent } from 'react';
 import { toast } from 'sonner';
-import { updateLink } from '@/app/actions';
+import { updateLink } from '@/app/actions/links';
 import { TTL_LABELS, TTL_PRESETS, type TtlPreset } from '@/lib/ttl';
 
 interface EditLinkButtonProps {

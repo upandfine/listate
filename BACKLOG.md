@@ -295,9 +295,8 @@ Wartbarkeit langfristig sauber bleibt.
   fuer die Server-Component-Forms, die `Promise<void>` erwarten.
   Sie rufen die ActionResult-Action und fuehren bei redirect-Result
   `next/navigation.redirect()` aus.
-- **Offen:** `useTemplate` umbenennen in `applyTemplate` (false-positive
-  React-Hook-Lint, mit disable-Kommentar entschaerft); Action-File
-  splitten nach Domain (Punkt 9).
+- ~~`useTemplate` umbenennen in `applyTemplate`~~: umgesetzt mit D9.
+- ~~Action-File splitten nach Domain~~: siehe Punkt 9 unten.
 
 **5. Komponenten-Architektur**
 - `CreateLinkForm` und `EditLinkButton` haben überlappende
@@ -352,10 +351,10 @@ Wartbarkeit langfristig sauber bleibt.
 
 **10. SOLID-Audit konkret**
 - **S**ingle Responsibility: aktuell ist `createTrackingLink` schon
-  gut zerlegt (validate / fetch / insert). Andere Stellen prüfen,
-  v. a. die `actions.ts`-Datei (1 große File mit 8 Actions) — splitten
-  nach Domain (`actions/links.ts`, `actions/templates.ts`,
-  `actions/admin.ts`, `actions/account.ts`).
+  gut zerlegt (validate / fetch / insert). ~~`actions.ts`-Datei
+  (1 große File mit 8 Actions) splitten nach Domain~~ — umgesetzt
+  mit D9: `app/actions/{links,og-overrides,templates,admin,account}.ts`,
+  shared helpers in `lib/actionHelpers.ts` + `lib/actionResult.ts`.
 - **O**pen/Closed: Resolver-Pipeline (Block-Liste → Adult → Safe Browsing)
   als Chain-of-Responsibility refaktorisieren. Neue Filter ohne
   Änderung am Aufrufer einhängbar.

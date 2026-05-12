@@ -14,6 +14,7 @@
  * Validation: Zod-Schemas fuer alle FormData-Inputs, Helper extrahiert
  * unten in parseInput.
  */
+import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { TrackingLinkError } from './createTrackingLink';
 
@@ -131,4 +132,30 @@ export function parseFormData<T extends z.ZodTypeAny>(
     throw new ValidationError(first.message);
   }
   return result.data;
+}
+
+// ---------------------------------------------------------------------------
+// FormAction-Bridge
+// ---------------------------------------------------------------------------
+
+/**
+ * Form-Action-Bridge: nimmt ein ActionResult und reagiert passend, sodass
+ * der Aufrufer keine Logik mehr selbst hat:
+ *   - bei redirect-Result: next/navigation.redirect() (wirft NEXT_REDIRECT)
+ *   - bei Fehler: console.error mit dem Context
+ *   - bei ok ohne redirect: stillschweigend ignorieren
+ *
+ * Wird von app/actions/*-Modulen verwendet, um die *FormAction-Wrappers
+ * dünn zu halten.
+ */
+export function executeOrRedirect(
+  result: ActionResult,
+  context: string
+): void {
+  if (result.ok && 'redirect' in result) {
+    redirect(result.redirect);
+  }
+  if (!result.ok) {
+    console.error(`[${context}]`, result.error);
+  }
 }

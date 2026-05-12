@@ -13,7 +13,7 @@ import {
   clearLinkImageOverride,
   updateLinkOverrides,
   uploadLinkImage,
-} from '@/app/actions';
+} from '@/app/actions/og-overrides';
 
 interface LinkPreviewInput {
   id: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { createTemplate, testTemplatePattern } from '@/app/actions';
+import { createTemplate, testTemplatePattern } from '@/app/actions/templates';
 import type { ResolveResult } from '@/lib/resolveTemplateUrl';
 
 export function TemplateForm() {

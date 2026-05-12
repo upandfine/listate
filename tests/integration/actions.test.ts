@@ -2,7 +2,7 @@
  * Integration-Tests fuer Server-Actions in app/actions.ts.
  *
  * 9 Actions: updateLink, deleteLink, blockHost, unblockHost,
- * deleteAccount, createTemplate, deleteTemplate, useTemplate,
+ * deleteAccount, createTemplate, deleteTemplate, applyTemplate,
  * testTemplatePattern.
  *
  * Mock-Stack wie bei API-Routes plus:
@@ -77,20 +77,20 @@ vi.mock('@/lib/resolveTemplateUrl', () => ({
   }),
 }));
 
+import { deleteAccount } from '@/app/actions/account';
+import { blockHost, unblockHost } from '@/app/actions/admin';
+import { deleteLink, updateLink } from '@/app/actions/links';
 import {
-  blockHost,
   clearLinkImageOverride,
-  createTemplate,
-  deleteAccount,
-  deleteLink,
-  deleteTemplate,
-  testTemplatePattern,
-  unblockHost,
-  updateLink,
   updateLinkOverrides,
   uploadLinkImage,
-  useTemplate,
-} from '@/app/actions';
+} from '@/app/actions/og-overrides';
+import {
+  applyTemplate,
+  createTemplate,
+  deleteTemplate,
+  testTemplatePattern,
+} from '@/app/actions/templates';
 
 // JPEG-Header fuer Magic-Bytes-Validation.
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
@@ -607,12 +607,12 @@ describe('testTemplatePattern', () => {
 });
 
 // ---------------------------------------------------------------------------
-// useTemplate (mit redirect am Ende!)
+// applyTemplate (mit redirect am Ende!)
 // ---------------------------------------------------------------------------
 
-describe('useTemplate', () => {
+describe('applyTemplate', () => {
   it('ok=false "Nicht angemeldet." ohne Session', async () => {
-    const res = await useTemplate(fd({ templateId: 't1' }));
+    const res = await applyTemplate(fd({ templateId: 't1' }));
     expect(res).toEqual({ ok: false, error: 'Nicht angemeldet.' });
   });
 
@@ -620,7 +620,7 @@ describe('useTemplate', () => {
     const me = seedUser(h.sqlite);
     mocks.session = { user: { id: me, role: 'user' } };
 
-    const res = await useTemplate(fd({ templateId: 'ghost' }));
+    const res = await applyTemplate(fd({ templateId: 'ghost' }));
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error).toContain('nicht gefunden');
   });
@@ -634,7 +634,7 @@ describe('useTemplate', () => {
       .run('t1', 'Test', 'https://example.test/page');
     mocks.session = { user: { id: me, role: 'user' } };
 
-    const res = await useTemplate(fd({ templateId: 't1' }));
+    const res = await applyTemplate(fd({ templateId: 't1' }));
 
     expect(res.ok).toBe(true);
     if (res.ok && 'redirect' in res) {
@@ -667,7 +667,7 @@ describe('useTemplate', () => {
       candidates: [],
     };
 
-    const res = await useTemplate(fd({ templateId: 't1' }));
+    const res = await applyTemplate(fd({ templateId: 't1' }));
     expect(res.ok).toBe(true);
 
     const created = h.sqlite
@@ -691,7 +691,7 @@ describe('useTemplate', () => {
       error: 'Kein Link auf der Quellseite passt zum Pattern.',
     };
 
-    const res = await useTemplate(fd({ templateId: 't1' }));
+    const res = await applyTemplate(fd({ templateId: 't1' }));
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error).toContain('Pattern');
   });

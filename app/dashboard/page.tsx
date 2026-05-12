@@ -12,7 +12,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { deleteLinkFormAction } from '@/app/actions';
+import { deleteLinkFormAction } from '@/app/actions/links';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { CopyButton } from '@/app/components/CopyButton';
 import { EditLinkButton } from '@/app/components/EditLinkButton';

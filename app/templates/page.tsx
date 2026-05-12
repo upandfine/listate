@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { and, desc, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { useTemplateFormAction } from '@/app/actions';
+import { applyTemplateFormAction } from '@/app/actions/templates';
 import { CopyButton } from '@/app/components/CopyButton';
 import { ShareButton } from '@/app/components/ShareButton';
 import { getDb } from '@/db';
@@ -186,7 +186,7 @@ export default async function TemplatesPage({
                 </a>
               </div>
 
-              <form action={useTemplateFormAction} className="self-start sm:self-center">
+              <form action={applyTemplateFormAction} className="self-start sm:self-center">
                 <input type="hidden" name="templateId" value={tpl.id} />
                 <button
                   type="submit"
