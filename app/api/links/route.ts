@@ -5,6 +5,7 @@ import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
 import { getDisplayOg } from '@/lib/displayOg';
+import { checkRateLimit, READ_LIMITS } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,21 @@ export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 });
+  }
+
+  // Rate-Limit: 300 Requests/h pro User auf /api/links.
+  const rate = checkRateLimit({
+    key: `links:${session.user.id}`,
+    ...READ_LIMITS.LINKS,
+  });
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: 'Zu viele Anfragen. Bitte in einem Moment erneut probieren.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rate.retryAfter) },
+      }
+    );
   }
 
   const isAdmin = session.user.role === 'admin';

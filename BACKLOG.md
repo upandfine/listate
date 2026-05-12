@@ -334,10 +334,12 @@ Wartbarkeit langfristig sauber bleibt.
   Live-DB), kann `bootstrap()` durch einen leeren Marker ersetzt werden.
 - ~~`WAL`-Aktivierung + `busy_timeout`~~ bleiben im Bootstrap.
 
-**7. Performance**
-- OG-Bilder im Dashboard via Next.js `<Image>` mit Proxy-Loader (kein
-  direkter Fremd-Host-Hit beim Owner-Browser → Privacy + Performance).
-- Bundle-Analyse (`@next/bundle-analyzer`), ggf. `Heatmap`/Charts
+**7. Performance** — teilweise umgesetzt
+- ~~Bundle-Analyse (`@next/bundle-analyzer`)~~: integriert in
+  [`next.config.mjs`](next.config.mjs), `npm run analyze` erzeugt
+  `.next/analyze/*.html`.
+- **Offen:** OG-Bilder im Dashboard via `<Image>` mit Proxy-Loader
+  (Privacy: Owner sieht fremde Hosts nicht direkt). `Heatmap`/Charts
   via `dynamic()` lazy laden.
 
 **8. Security-Härtung** — überwiegend umgesetzt
@@ -352,10 +354,13 @@ Wartbarkeit langfristig sauber bleibt.
 - ~~**X-Content-Type-Options: nosniff**~~ aktiv.
 - ~~**Permissions-Policy**~~ deaktiviert camera/microphone/geolocation/
   payment/usb/magnetometer/gyroscope/accelerometer.
-- **Offen: Rate-Limit auch auf `/api/links` und `/api/export`** (nicht
-  nur Create). Aktuell hat nur `createTrackingLink` einen Pro-User-
-  Stunden-Limiter via DB-COUNT. Für Reads bräuchte es einen generischen
-  Request-Counter (Redis oder eigene SQL-Tabelle).
+- ~~**Rate-Limit auch auf `/api/links` und `/api/export`**~~ umgesetzt:
+  Generischer In-Memory-Sliding-Window-Counter in
+  [`lib/rateLimit.ts`](lib/rateLimit.ts). `/api/links` 300/h pro User,
+  `/api/export` 10/h pro User. Bei Trigger: HTTP 429 +
+  `Retry-After`-Header. 9 Tests inkl. Sliding-Window-Edge-Cases.
+  **Hinweis:** Counter ist pro Prozess (Single-Instance-Deploy ok auf
+  Sliplane). Bei Multi-Instance müsste auf Redis umgestellt werden.
 
 **9. Operationelles** — umgesetzt
 - ~~`/api/health`-Endpoint~~ aktiv (200 OK + DB-Ping).

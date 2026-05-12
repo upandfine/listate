@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@next/bundle-analyzer": "^16.2.6",
     "@playwright/test": "^1.60.0",
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20.14.10",

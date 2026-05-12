@@ -1,3 +1,15 @@
+import nextBundleAnalyzer from '@next/bundle-analyzer';
+
+/**
+ * Bundle-Analyzer: `ANALYZE=true npm run build` erzeugt
+ * .next/analyze/*.html mit visueller Aufschluesselung des Bundles.
+ * Nuetzlich fuer Performance-Reviews und Lazy-Loading-Entscheidungen
+ * (Heatmap, Charts, etc.).
+ */
+const withBundleAnalyzer = nextBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 /** @type {import('next').NextConfig} */
 
 // Security-Header für alle Routen.
@@ -69,4 +81,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

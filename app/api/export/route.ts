@@ -3,6 +3,7 @@ import { desc, eq, inArray } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { getDb } from '@/db';
 import { clicks, links } from '@/db/schema';
+import { checkRateLimit, READ_LIMITS } from '@/lib/rateLimit';
 import { parseTags } from '@/lib/tags';
 
 export const runtime = 'nodejs';
@@ -16,6 +17,22 @@ export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 });
+  }
+
+  // Rate-Limit: 10 Exports/h pro User. Export ist teurer (komplette DB-
+  // Sicht des Users + Click-Historie), daher engerer Wert als bei /links.
+  const rate = checkRateLimit({
+    key: `export:${session.user.id}`,
+    ...READ_LIMITS.EXPORT,
+  });
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: 'Zu viele Export-Anfragen. Bitte in einem Moment erneut probieren.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rate.retryAfter) },
+      }
+    );
   }
 
   const db = getDb();

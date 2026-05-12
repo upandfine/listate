@@ -30,6 +30,7 @@ vi.mock('@/lib/baseUrl', () => ({
 }));
 
 import { GET } from '@/app/api/links/route';
+import { _resetRateLimitForTests } from '@/lib/rateLimit';
 
 let h: TestDbHandle;
 
@@ -37,6 +38,7 @@ beforeEach(() => {
   h = createTestDb();
   mocks.currentDb = h.db;
   mocks.session = null;
+  _resetRateLimitForTests();
 });
 
 afterEach(() => {

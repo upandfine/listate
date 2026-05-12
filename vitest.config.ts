@@ -35,6 +35,7 @@ export default defineConfig({
         'lib/pagination.ts',
         'lib/displayOg.ts',
         'lib/imageStorage.ts',
+        'lib/rateLimit.ts',
         'app/actions/links.ts',
         'app/actions/og-overrides.ts',
         'app/actions/templates.ts',
