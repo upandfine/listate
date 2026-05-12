@@ -89,6 +89,19 @@ function bootstrapTestSchema(sqlite: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       created_by TEXT REFERENCES user(id) ON DELETE SET NULL
     );
+
+    CREATE TABLE audit_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    TEXT,
+      action     TEXT NOT NULL,
+      target_id  TEXT,
+      metadata   TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX idx_audit_log_user_id_created_at
+      ON audit_log(user_id, created_at);
+    CREATE INDEX idx_audit_log_action_created_at
+      ON audit_log(action, created_at);
   `);
 }
 

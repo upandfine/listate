@@ -468,6 +468,32 @@ ausstehend — das wird sich beim nächsten Test-Link zeigen.
 
 ---
 
+### ~~I. Audit-Log-Stream (ISO 25010 Security · Non-Repudiation)~~ — umgesetzt
+
+Eigene `audit_log`-Tabelle ([`db/schema.ts`](db/schema.ts) +
+idempotenter Bootstrap in [`db/index.ts`](db/index.ts), plus passende
+Indexe `(user_id, created_at)` und `(action, created_at)`).
+[`lib/auditLog.logAuditEvent`](lib/auditLog.ts) als defensiver
+Writer (DB-Fehler crasht den Aufrufer nicht).
+
+Erfasste Actions:
+- `link.deleted` (mit originalUrl + owner in metadata)
+- `link.bulk_deleted` (bei blockHost + alsoDelete)
+- `host.blocked` / `host.unblocked`
+- `template.created` / `template.deleted` / `template.applied`
+- `account.deleted` (userId=null, weil User selbst weg; email in metadata)
+
+11 Integration-Tests in [`tests/integration/auditLog.test.ts`](tests/integration/auditLog.test.ts):
+direkter Writer + jede Action verifiziert das Log-Verhalten.
+
+**Bewusst NICHT geloggt:** updateLink, updateLinkOverrides,
+uploadLinkImage — zu hochfrequent, wuerde audit_log zumuellen ohne
+Sicherheitsmehrwert.
+
+**Offen:** Admin-UI zur Audit-Log-Ansicht (eigene Session).
+
+---
+
 ### H. Accessibility (ISO 25010 Usability)
 
 **~~H1. eslint-plugin-jsx-a11y hochfahren~~** — umgesetzt

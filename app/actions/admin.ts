@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getDb } from '@/db';
 import { blockedHosts, links } from '@/db/schema';
 import { requireAdmin } from '@/lib/actionHelpers';
+import { logAuditEvent } from '@/lib/auditLog';
 import {
   actionOk,
   executeOrRedirect,
@@ -57,8 +58,21 @@ export async function blockHost(formData: FormData): Promise<ActionResult> {
       }
       if (idsToDelete.length > 0) {
         db.delete(links).where(inArray(links.id, idsToDelete)).run();
+        logAuditEvent({
+          userId: user.id,
+          action: 'link.bulk_deleted',
+          targetId: host,
+          metadata: { count: idsToDelete.length, trigger: 'block_host' },
+        });
       }
     }
+
+    logAuditEvent({
+      userId: user.id,
+      action: 'host.blocked',
+      targetId: host,
+      metadata: { reason, alsoDeleted: input.alsoDelete },
+    });
 
     revalidatePath('/admin/blocked');
     revalidatePath('/dashboard');
@@ -79,12 +93,17 @@ export async function blockHostFormAction(formData: FormData): Promise<void> {
 export async function unblockHost(formData: FormData): Promise<ActionResult> {
   try {
     const input = parseFormData(formData, unblockHostSchema);
-    await requireAdmin();
+    const user = await requireAdmin();
 
     getDb()
       .delete(blockedHosts)
       .where(eq(blockedHosts.host, input.host))
       .run();
+    logAuditEvent({
+      userId: user.id,
+      action: 'host.unblocked',
+      targetId: input.host,
+    });
     revalidatePath('/admin/blocked');
     return actionOk();
   } catch (err) {

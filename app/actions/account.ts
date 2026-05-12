@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { requireUser } from '@/lib/actionHelpers';
+import { logAuditEvent } from '@/lib/auditLog';
 import {
   actionRedirect,
   executeOrRedirect,
@@ -31,6 +32,15 @@ export async function deleteAccount(): Promise<ActionResult> {
 
     db.delete(users).where(eq(users.id, user.id)).run();
     for (const p of orphans) deleteImage(p);
+
+    // userId NULL, weil der User selbst gerade aus der DB ist. Email als
+    // metadata erhalten fuer Audit-Trail.
+    logAuditEvent({
+      userId: null,
+      action: 'account.deleted',
+      targetId: user.id,
+      metadata: { email: user.email ?? null },
+    });
 
     return actionRedirect('/login');
   } catch (err) {

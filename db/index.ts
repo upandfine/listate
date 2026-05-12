@@ -97,6 +97,15 @@ function bootstrap(sqlite: Database.Database) {
       created_by TEXT REFERENCES user(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    TEXT,
+      action     TEXT NOT NULL,
+      target_id  TEXT,
+      metadata   TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS templates (
       id           TEXT PRIMARY KEY,
       label        TEXT NOT NULL,
@@ -132,6 +141,20 @@ function bootstrap(sqlite: Database.Database) {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_links_slug_unique ON links(slug) WHERE slug IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_clicks_link_id ON clicks(link_id);
     CREATE INDEX IF NOT EXISTS idx_clicks_clicked_at ON clicks(clicked_at);
+
+    -- audit_log fuer alte DBs nachziehen:
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    TEXT,
+      action     TEXT NOT NULL,
+      target_id  TEXT,
+      metadata   TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_log_user_id_created_at
+      ON audit_log(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_audit_log_action_created_at
+      ON audit_log(action, created_at);
   `);
 }
 

@@ -118,6 +118,26 @@ export const templates = sqliteTable('templates', {
   }),
 });
 
+/**
+ * Append-only Audit-Log: erfasst destruktive und Admin-relevante
+ * Aktionen separat vom click-Counter. Wird in Server-Actions ueber
+ * lib/auditLog.logAuditEvent geschrieben.
+ *
+ * action ist ein dot-separierter Identifier (`link.deleted`,
+ * `host.blocked`, `account.deleted` etc.).
+ * metadata ist JSON-Text mit weiteren Kontext-Feldern.
+ */
+export const auditLog = sqliteTable('audit_log', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id'),
+  action: text('action').notNull(),
+  targetId: text('target_id'),
+  metadata: text('metadata'),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const blockedHosts = sqliteTable('blocked_hosts', {
   host: text('host').primaryKey(),
   reason: text('reason'),
@@ -134,3 +154,4 @@ export type Link = typeof links.$inferSelect;
 export type Click = typeof clicks.$inferSelect;
 export type BlockedHost = typeof blockedHosts.$inferSelect;
 export type Template = typeof templates.$inferSelect;
+export type AuditLog = typeof auditLog.$inferSelect;

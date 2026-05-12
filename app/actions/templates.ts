@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getDb } from '@/db';
 import { templates } from '@/db/schema';
 import { requireAdmin, requireUser } from '@/lib/actionHelpers';
+import { logAuditEvent } from '@/lib/auditLog';
 import {
   actionOk,
   actionRedirect,
@@ -70,6 +71,12 @@ export async function createTemplate(
       })
       .run();
 
+    logAuditEvent({
+      userId: user.id,
+      action: 'template.created',
+      metadata: { label: input.label, url: parsed.toString() },
+    });
+
     revalidatePath('/admin/templates');
     revalidatePath('/templates');
     return actionOk();
@@ -87,9 +94,14 @@ export async function deleteTemplate(
 ): Promise<ActionResult> {
   try {
     const input = parseFormData(formData, deleteTemplateSchema);
-    await requireAdmin();
+    const user = await requireAdmin();
 
     getDb().delete(templates).where(eq(templates.id, input.id)).run();
+    logAuditEvent({
+      userId: user.id,
+      action: 'template.deleted',
+      targetId: input.id,
+    });
     revalidatePath('/admin/templates');
     revalidatePath('/templates');
     return actionOk();
@@ -175,6 +187,13 @@ export async function applyTemplate(
       }
       throw err;
     }
+
+    logAuditEvent({
+      userId: user.id,
+      action: 'template.applied',
+      targetId: input.templateId,
+      metadata: { createdLinkId: created.id, targetUrl },
+    });
 
     revalidatePath('/dashboard');
     revalidatePath('/templates');

@@ -16,6 +16,7 @@ import {
   deleteLinkSchema,
   updateLinkSchema,
 } from '@/lib/actionSchemas';
+import { logAuditEvent } from '@/lib/auditLog';
 import {
   fetchOg,
   normalizeAndCheckSlug,
@@ -99,10 +100,16 @@ export async function updateLink(formData: FormData): Promise<ActionResult> {
 export async function deleteLink(formData: FormData): Promise<ActionResult> {
   try {
     const input = parseFormData(formData, deleteLinkSchema);
-    const { link } = await requireOwnedLink(input.id);
+    const { user, link } = await requireOwnedLink(input.id);
 
     getDb().delete(links).where(eq(links.id, link.id)).run();
     if (link.customImagePath) deleteImage(link.customImagePath);
+    logAuditEvent({
+      userId: user.id,
+      action: 'link.deleted',
+      targetId: link.id,
+      metadata: { originalUrl: link.originalUrl, owner: link.userId },
+    });
     revalidatePath('/dashboard');
     return actionOk();
   } catch (err) {
