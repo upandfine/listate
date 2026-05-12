@@ -1,0 +1,11 @@
+Contact: mailto:sommer@upandfine.de
+Expires: 2027-05-12T00:00:00.000Z
+Preferred-Languages: de, en
+Canonical: https://listate.de/.well-known/security.txt
+Policy: https://listate.de/datenschutz
+
+# Hinweise an Security-Researcher:
+# Bitte konkrete Reproduktionsschritte UND Impact-Beschreibung.
+# Wir antworten innerhalb von 5 Werktagen.
+# In-scope: listate.de, alle /t/<id>-Endpoints, /api/*, Auth-Flow.
+# Out-of-scope: DoS gegen den Free-Tier, Brute-Force auf einzelne Slugs.

@@ -342,12 +342,16 @@ Wartbarkeit langfristig sauber bleibt.
   Stunden-Limiter via DB-COUNT. Für Reads bräuchte es einen generischen
   Request-Counter (Redis oder eigene SQL-Tabelle).
 
-**9. Operationelles**
-- `/api/health`-Endpoint (200 OK + DB-Ping) für Sliplane-Healthcheck
-  und externe Uptime-Monitore.
-- Backup-Skript für SQLite (`sqlite3 ... .backup`) als Cron auf Sliplane,
-  Backup als Tarball ins Volume.
-- `.well-known/security.txt` für Vulnerability-Reports.
+**9. Operationelles** — umgesetzt
+- ~~`/api/health`-Endpoint~~ aktiv (200 OK + DB-Ping).
+- ~~Backup-Skript fuer SQLite~~: [`scripts/backup-db.sh`](scripts/backup-db.sh)
+  nutzt SQLite-Online-Backup-API + `integrity_check` + gzip + 14-Tage-
+  Rotation. [`scripts/verify-backup.sh`](scripts/verify-backup.sh) als
+  Restore-Smoke-Test (PRAGMA-Check + Quick-Counts). README mit
+  Sliplane-Cron-Setup ([`scripts/README.md`](scripts/README.md)).
+  `sqlite` + `bash` im Production-Container nachinstalliert.
+- ~~`.well-known/security.txt`~~ in [`public/.well-known/security.txt`](public/.well-known/security.txt)
+  (Expires 2027, mailto, Canonical, Policy).
 
 **10. SOLID-Audit konkret**
 - **S**ingle Responsibility: aktuell ist `createTrackingLink` schon

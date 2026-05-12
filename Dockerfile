@@ -31,12 +31,20 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV DB_PATH=/app/data/links.db
 
+# sqlite3-CLI fuer Backup-/Verify-Skripte (scripts/backup-db.sh nutzt
+# `.backup`-Befehl und PRAGMA integrity_check). bash, weil scripts/ Bash-
+# spezifische Features verwendet (set -euo, [[ ]], etc.).
+RUN apk add --no-cache sqlite bash
+
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Backup-Skripte als nicht-versioniert kopieren — nextjs:nodejs als Owner,
+# damit sie ueber denselben User wie die App laufen koennen.
+COPY --chown=nextjs:nodejs scripts/backup-db.sh scripts/verify-backup.sh ./scripts/
 
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
 
