@@ -135,18 +135,12 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('updateLink', () => {
-  it('ok=false ohne Session (wird derzeit als Generic-Fehler verpackt)', async () => {
-    // BACKLOG Feature D Punkt 4 ("Server-Actions vereinheitlichen"):
-    // updateLink wrappt JEDEN Error im aeusseren Catch, auch
-    // "Nicht angemeldet" aus requireUser(). Der Aufrufer kann daher
-    // 401-Faelle nicht von echten Speicherfehlern unterscheiden.
-    // Test bildet das tatsaechliche Verhalten ab; die saubere Trennung
-    // ist im Refactoring-Backlog vorgemerkt.
-    const res = await updateLink(fd({ id: 'x' }));
-    expect(res.ok).toBe(false);
+  it('ok=false mit "Nicht angemeldet." ohne Session (nach D3-Refactor)', async () => {
+    const res = await updateLink(fd({ id: 'lnk' }));
+    expect(res).toEqual({ ok: false, error: 'Nicht angemeldet.' });
   });
 
-  it('ok=false ohne id', async () => {
+  it('ok=false mit "Link-ID fehlt." ohne id', async () => {
     const me = seedUser(h.sqlite);
     mocks.session = { user: { id: me, role: 'user' } };
 
@@ -159,7 +153,7 @@ describe('updateLink', () => {
     mocks.session = { user: { id: me, role: 'user' } };
 
     const res = await updateLink(fd({ id: 'ghost' }));
-    expect(res.ok).toBe(false);
+    expect(res).toEqual({ ok: false, error: 'Link nicht gefunden.' });
   });
 
   it('ok=false bei fremdem Link (non-admin)', async () => {
@@ -268,37 +262,35 @@ describe('updateLink', () => {
 // ---------------------------------------------------------------------------
 
 describe('deleteLink', () => {
-  it('wirft "Nicht angemeldet" ohne Session', async () => {
-    await expect(deleteLink(fd({ id: 'x' }))).rejects.toThrow(
-      'Nicht angemeldet'
-    );
+  it('ok=false "Nicht angemeldet." ohne Session', async () => {
+    const res = await deleteLink(fd({ id: 'x' }));
+    expect(res).toEqual({ ok: false, error: 'Nicht angemeldet.' });
   });
 
-  it('silent return ohne id', async () => {
+  it('ok=false "Link-ID fehlt." ohne id', async () => {
     const me = seedUser(h.sqlite);
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await expect(deleteLink(fd({}))).resolves.toBeUndefined();
+    const res = await deleteLink(fd({}));
+    expect(res).toEqual({ ok: false, error: 'Link-ID fehlt.' });
   });
 
-  it('silent return bei nicht-existentem Link', async () => {
+  it('ok=false "Link nicht gefunden." bei nicht-existentem Link', async () => {
     const me = seedUser(h.sqlite);
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await expect(
-      deleteLink(fd({ id: 'ghost' }))
-    ).resolves.toBeUndefined();
+    const res = await deleteLink(fd({ id: 'ghost' }));
+    expect(res).toEqual({ ok: false, error: 'Link nicht gefunden.' });
   });
 
-  it('wirft "Keine Berechtigung" bei fremdem Link (non-admin)', async () => {
+  it('ok=false "Keine Berechtigung." bei fremdem Link (non-admin)', async () => {
     const me = seedUser(h.sqlite, { id: 'me' });
     const other = seedUser(h.sqlite, { id: 'other' });
     seedLink(h.sqlite, { id: 'lnk', userId: other });
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await expect(deleteLink(fd({ id: 'lnk' }))).rejects.toThrow(
-      'Keine Berechtigung'
-    );
+    const res = await deleteLink(fd({ id: 'lnk' }));
+    expect(res).toEqual({ ok: false, error: 'Keine Berechtigung.' });
   });
 
   it('Owner darf loeschen', async () => {
@@ -306,7 +298,7 @@ describe('deleteLink', () => {
     seedLink(h.sqlite, { id: 'lnk', userId: me });
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await deleteLink(fd({ id: 'lnk' }));
+    expect(await deleteLink(fd({ id: 'lnk' }))).toEqual({ ok: true });
 
     const row = h.sqlite
       .prepare(`SELECT id FROM links WHERE id = ?`)
@@ -320,7 +312,7 @@ describe('deleteLink', () => {
     seedLink(h.sqlite, { id: 'lnk', userId: other });
     mocks.session = { user: { id: admin, role: 'admin' } };
 
-    await deleteLink(fd({ id: 'lnk' }));
+    expect(await deleteLink(fd({ id: 'lnk' }))).toEqual({ ok: true });
 
     const row = h.sqlite
       .prepare(`SELECT id FROM links WHERE id = ?`)
@@ -334,22 +326,21 @@ describe('deleteLink', () => {
 // ---------------------------------------------------------------------------
 
 describe('blockHost', () => {
-  it('wirft "Nur Admins" ohne Admin-Rolle', async () => {
+  it('ok=false "Nur Admins." ohne Admin-Rolle', async () => {
     const me = seedUser(h.sqlite, { role: 'user' });
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await expect(
-      blockHost(fd({ host: 'bad.test' }))
-    ).rejects.toThrow('Nur Admins');
+    const res = await blockHost(fd({ host: 'bad.test' }));
+    expect(res).toEqual({ ok: false, error: 'Nur Admins.' });
   });
 
-  it('wirft bei ungueltigem Host (kein Punkt)', async () => {
+  it('ok=false bei ungueltigem Host (kein Punkt)', async () => {
     const admin = seedUser(h.sqlite, { role: 'admin' });
     mocks.session = { user: { id: admin, role: 'admin' } };
 
-    await expect(blockHost(fd({ host: 'foo' }))).rejects.toThrow(
-      'gültigen Host'
-    );
+    const res = await blockHost(fd({ host: 'foo' }));
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain('gültigen Host');
   });
 
   it('fuegt Host in blocked_hosts ein mit Reason und createdBy', async () => {
@@ -411,13 +402,12 @@ describe('blockHost', () => {
 });
 
 describe('unblockHost', () => {
-  it('wirft "Nur Admins" ohne Admin-Rolle', async () => {
+  it('ok=false "Nur Admins." ohne Admin-Rolle', async () => {
     const me = seedUser(h.sqlite, { role: 'user' });
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await expect(unblockHost(fd({ host: 'bad.test' }))).rejects.toThrow(
-      'Nur Admins'
-    );
+    const res = await unblockHost(fd({ host: 'bad.test' }));
+    expect(res).toEqual({ ok: false, error: 'Nur Admins.' });
   });
 
   it('entfernt den Eintrag', async () => {
@@ -427,7 +417,7 @@ describe('unblockHost', () => {
       .run('bad.test');
     mocks.session = { user: { id: admin, role: 'admin' } };
 
-    await unblockHost(fd({ host: 'bad.test' }));
+    expect(await unblockHost(fd({ host: 'bad.test' }))).toEqual({ ok: true });
 
     const row = h.sqlite
       .prepare(`SELECT host FROM blocked_hosts WHERE host = ?`)
@@ -441,25 +431,29 @@ describe('unblockHost', () => {
 // ---------------------------------------------------------------------------
 
 describe('deleteAccount', () => {
-  it('wirft "Nicht angemeldet" ohne Session', async () => {
-    await expect(deleteAccount()).rejects.toThrow('Nicht angemeldet');
+  it('ok=false "Nicht angemeldet." ohne Session', async () => {
+    const res = await deleteAccount();
+    expect(res).toEqual({ ok: false, error: 'Nicht angemeldet.' });
   });
 
-  it('loescht den User-Eintrag und cascadet auf Links', async () => {
+  it('loescht den User-Eintrag, cascadet auf Links, liefert redirect-Result', async () => {
     const me = seedUser(h.sqlite);
     seedLink(h.sqlite, { id: 'l1', userId: me });
     seedLink(h.sqlite, { id: 'l2', userId: me });
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await deleteAccount();
+    const res = await deleteAccount();
 
+    expect(res).toEqual({ ok: true, redirect: '/login' });
     expect(
       h.sqlite.prepare(`SELECT id FROM user WHERE id = ?`).get(me)
     ).toBeUndefined();
     expect(
       h.sqlite.prepare(`SELECT id FROM links WHERE user_id = ?`).all(me)
     ).toEqual([]);
-    expect(mocks.signOutCalls).toEqual([{ redirectTo: '/login' }]);
+    // signOut wird nach D3-Refactor NICHT mehr in der Action selbst aufgerufen
+    // — der Aufrufer (deleteAccountFormAction) macht das via redirect.
+    expect(mocks.signOutCalls).toEqual([]);
   });
 });
 
@@ -468,56 +462,59 @@ describe('deleteAccount', () => {
 // ---------------------------------------------------------------------------
 
 describe('createTemplate', () => {
-  it('wirft "Nur Admins" ohne Admin-Rolle', async () => {
+  it('ok=false "Nur Admins." ohne Admin-Rolle', async () => {
     const me = seedUser(h.sqlite, { role: 'user' });
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await expect(
-      createTemplate(fd({ label: 'x', url: 'https://x.test' }))
-    ).rejects.toThrow('Nur Admins');
+    const res = await createTemplate(fd({ label: 'x', url: 'https://x.test' }));
+    expect(res).toEqual({ ok: false, error: 'Nur Admins.' });
   });
 
-  it('wirft bei fehlendem Label', async () => {
+  it('ok=false bei fehlendem Label', async () => {
     const admin = seedUser(h.sqlite, { role: 'admin' });
     mocks.session = { user: { id: admin, role: 'admin' } };
 
-    await expect(
-      createTemplate(fd({ label: '', url: 'https://x.test' }))
-    ).rejects.toThrow('Bezeichnung fehlt');
+    const res = await createTemplate(fd({ label: '', url: 'https://x.test' }));
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain('Bezeichnung');
   });
 
   it('wirft bei nicht-https URL', async () => {
     const admin = seedUser(h.sqlite, { role: 'admin' });
     mocks.session = { user: { id: admin, role: 'admin' } };
 
-    await expect(
-      createTemplate(fd({ label: 'x', url: 'http://x.test' }))
-    ).rejects.toThrow('https');
+    const res = await createTemplate(
+      fd({ label: 'x', url: 'http://x.test' })
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain('https');
   });
 
-  it('wirft bei ungueltigem urlPattern-Regex', async () => {
+  it('ok=false bei ungueltigem urlPattern-Regex', async () => {
     const admin = seedUser(h.sqlite, { role: 'admin' });
     mocks.session = { user: { id: admin, role: 'admin' } };
 
-    await expect(
-      createTemplate(
-        fd({ label: 'x', url: 'https://x.test', urlPattern: '[unclosed' })
-      )
-    ).rejects.toThrow('Pattern');
+    const res = await createTemplate(
+      fd({ label: 'x', url: 'https://x.test', urlPattern: '[unclosed' })
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain('Pattern');
   });
 
   it('legt Vorlage an mit allen Feldern', async () => {
     const admin = seedUser(h.sqlite, { role: 'admin' });
     mocks.session = { user: { id: admin, role: 'admin' } };
 
-    await createTemplate(
-      fd({
-        label: 'Bibel woche',
-        url: 'https://bibel.test/overview',
-        description: 'wochenartikel',
-        urlPattern: 'woche-\\d+',
-      })
-    );
+    expect(
+      await createTemplate(
+        fd({
+          label: 'Bibel woche',
+          url: 'https://bibel.test/overview',
+          description: 'wochenartikel',
+          urlPattern: 'woche-\\d+',
+        })
+      )
+    ).toEqual({ ok: true });
 
     const row = h.sqlite
       .prepare(`SELECT * FROM templates`)
@@ -531,13 +528,12 @@ describe('createTemplate', () => {
 });
 
 describe('deleteTemplate', () => {
-  it('wirft "Nur Admins" ohne Admin-Rolle', async () => {
+  it('ok=false "Nur Admins." ohne Admin-Rolle', async () => {
     const me = seedUser(h.sqlite, { role: 'user' });
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await expect(deleteTemplate(fd({ id: 't1' }))).rejects.toThrow(
-      'Nur Admins'
-    );
+    const res = await deleteTemplate(fd({ id: 't1' }));
+    expect(res).toEqual({ ok: false, error: 'Nur Admins.' });
   });
 
   it('entfernt die Vorlage', async () => {
@@ -549,7 +545,7 @@ describe('deleteTemplate', () => {
       .run('t1', 'x', 'https://x.test');
     mocks.session = { user: { id: admin, role: 'admin' } };
 
-    await deleteTemplate(fd({ id: 't1' }));
+    expect(await deleteTemplate(fd({ id: 't1' }))).toEqual({ ok: true });
 
     expect(
       h.sqlite.prepare(`SELECT id FROM templates WHERE id = ?`).get('t1')
@@ -615,22 +611,21 @@ describe('testTemplatePattern', () => {
 // ---------------------------------------------------------------------------
 
 describe('useTemplate', () => {
-  it('wirft "Nicht angemeldet" ohne Session', async () => {
-    await expect(useTemplate(fd({ templateId: 't1' }))).rejects.toThrow(
-      'Nicht angemeldet'
-    );
+  it('ok=false "Nicht angemeldet." ohne Session', async () => {
+    const res = await useTemplate(fd({ templateId: 't1' }));
+    expect(res).toEqual({ ok: false, error: 'Nicht angemeldet.' });
   });
 
-  it('wirft bei nicht-existenter Vorlage', async () => {
+  it('ok=false bei nicht-existenter Vorlage', async () => {
     const me = seedUser(h.sqlite);
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await expect(useTemplate(fd({ templateId: 'ghost' }))).rejects.toThrow(
-      'nicht gefunden'
-    );
+    const res = await useTemplate(fd({ templateId: 'ghost' }));
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain('nicht gefunden');
   });
 
-  it('happy path ohne Pattern: erstellt Link aus template.original_url, redirected', async () => {
+  it('happy path ohne Pattern: erstellt Link, liefert redirect-Result', async () => {
     const me = seedUser(h.sqlite);
     h.sqlite
       .prepare(
@@ -639,12 +634,17 @@ describe('useTemplate', () => {
       .run('t1', 'Test', 'https://example.test/page');
     mocks.session = { user: { id: me, role: 'user' } };
 
-    await expect(useTemplate(fd({ templateId: 't1' }))).rejects.toThrow(
-      'NEXT_REDIRECT'
-    );
+    const res = await useTemplate(fd({ templateId: 't1' }));
 
-    expect(mocks.redirectCalls).toHaveLength(1);
-    expect(mocks.redirectCalls[0]).toMatch(/^\/templates\?created=/);
+    expect(res.ok).toBe(true);
+    if (res.ok && 'redirect' in res) {
+      expect(res.redirect).toMatch(/^\/templates\?created=/);
+    } else {
+      throw new Error('expected redirect result');
+    }
+    // Action selbst ruft kein next/navigation.redirect mehr auf — das
+    // macht der Form-Wrapper im UI.
+    expect(mocks.redirectCalls).toEqual([]);
 
     const created = h.sqlite
       .prepare(`SELECT * FROM links WHERE user_id = ?`)
@@ -667,9 +667,8 @@ describe('useTemplate', () => {
       candidates: [],
     };
 
-    await expect(useTemplate(fd({ templateId: 't1' }))).rejects.toThrow(
-      'NEXT_REDIRECT'
-    );
+    const res = await useTemplate(fd({ templateId: 't1' }));
+    expect(res.ok).toBe(true);
 
     const created = h.sqlite
       .prepare(`SELECT original_url FROM links WHERE user_id = ?`)
@@ -677,7 +676,7 @@ describe('useTemplate', () => {
     expect(created.original_url).toBe('https://example.test/woche-19');
   });
 
-  it('wirft, wenn Resolver kein Match findet', async () => {
+  it('ok=false, wenn Resolver kein Match findet', async () => {
     const me = seedUser(h.sqlite);
     h.sqlite
       .prepare(
@@ -692,9 +691,9 @@ describe('useTemplate', () => {
       error: 'Kein Link auf der Quellseite passt zum Pattern.',
     };
 
-    await expect(useTemplate(fd({ templateId: 't1' }))).rejects.toThrow(
-      'Pattern'
-    );
+    const res = await useTemplate(fd({ templateId: 't1' }));
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain('Pattern');
   });
 });
 
@@ -878,7 +877,11 @@ describe('uploadLinkImage', () => {
     const res = await uploadLinkImage(
       fdWithFile({ id: 'lnk' }, 'image', makeFile(JPEG))
     );
-    expect(res).toEqual({ ok: true });
+    expect(res.ok).toBe(true);
+    if (res.ok && 'data' in res) {
+      const data = res.data as { filename: string };
+      expect(data.filename).toMatch(/^lnk-[a-f0-9]{8}\.jpg$/);
+    }
 
     const row = h.sqlite
       .prepare(`SELECT custom_image_path, image_hidden FROM links WHERE id = ?`)

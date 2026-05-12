@@ -276,13 +276,28 @@ Wartbarkeit langfristig sauber bleibt.
 - **Offen:** `any`/`unknown`-Casts auditieren, Drizzle-Query-Returns
   in Domain-Types extrahieren (`db/types.ts`).
 
-**4. Server-Actions vereinheitlichen**
-- Aktuell: manche werfen `Error`, andere `TrackingLinkError`, wieder
-  andere `redirect`en oder geben nichts zurück. Ein **einheitliches
-  ActionResult-Pattern** (`{ ok: true, data } | { ok: false, error }`)
-  vereinfacht Frontend-Behandlung.
-- **Zod**-Schemas für alle FormData-Inputs (`createTemplate`,
-  `updateLink`, `blockHost`, …). Killt eine ganze Klasse von Bugs.
+**~~4. Server-Actions vereinheitlichen~~** — umgesetzt
+- ~~Einheitliches ActionResult-Pattern~~:
+  [`lib/actionResult.ts`](lib/actionResult.ts) definiert
+  `ActionResult<T> = {ok:true} | {ok:true, data} | {ok:true, redirect} | {ok:false, error}`.
+  Konstruktoren `actionOk`, `actionOkData`, `actionRedirect`, `actionFail`.
+- ~~Zod-Schemas~~ in [`lib/actionSchemas.ts`](lib/actionSchemas.ts) für alle
+  FormData-Inputs (updateLink, deleteLink, blockHost, unblockHost,
+  createTemplate, deleteTemplate, useTemplate, updateLinkOverrides,
+  clearLinkImageOverride, testTemplatePattern). `parseFormData(fd, schema)`
+  als Single-Entry-Point.
+- ~~Typisierte Fehler-Klassen~~ `AuthError`, `PermissionError`,
+  `ValidationError` mit `toActionFail()`-Mapper, der `TrackingLinkError`
+  und die drei eigenen Klassen 1:1 als User-Message durchreicht.
+  „Nicht angemeldet."-Fall ist jetzt UNTERSCHEIDBAR vom Generic-500;
+  damit ist die bekannte Schwachstelle aus dem OG-Override-Bau weg.
+- Form-Action-Wrapper (deleteLinkFormAction, blockHostFormAction, …)
+  fuer die Server-Component-Forms, die `Promise<void>` erwarten.
+  Sie rufen die ActionResult-Action und fuehren bei redirect-Result
+  `next/navigation.redirect()` aus.
+- **Offen:** `useTemplate` umbenennen in `applyTemplate` (false-positive
+  React-Hook-Lint, mit disable-Kommentar entschaerft); Action-File
+  splitten nach Domain (Punkt 9).
 
 **5. Komponenten-Architektur**
 - `CreateLinkForm` und `EditLinkButton` haben überlappende

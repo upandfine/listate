@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { blockHost, unblockHost } from '@/app/actions';
+import { blockHostFormAction, unblockHostFormAction } from '@/app/actions';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { getDb } from '@/db';
 import { blockedHosts, users } from '@/db/schema';
@@ -42,7 +42,7 @@ export default async function BlockedHostsPage() {
 
       <section className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Host hinzufügen</h2>
-        <form action={blockHost} className="mt-4 space-y-4">
+        <form action={blockHostFormAction} className="mt-4 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <label
@@ -140,7 +140,7 @@ export default async function BlockedHostsPage() {
                   </div>
                 </div>
                 <ConfirmButton
-                  formAction={unblockHost}
+                  formAction={unblockHostFormAction}
                   hiddenFields={{ host: row.host }}
                   buttonLabel="Aufheben"
                   buttonClassName="rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"

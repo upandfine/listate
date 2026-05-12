@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { deleteTemplate } from '@/app/actions';
+import { deleteTemplateFormAction } from '@/app/actions';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { getDb } from '@/db';
 import { templates, users } from '@/db/schema';
@@ -102,7 +102,7 @@ export default async function AdminTemplatesPage() {
                 </div>
 
                 <ConfirmButton
-                  formAction={deleteTemplate}
+                  formAction={deleteTemplateFormAction}
                   hiddenFields={{ id: row.id }}
                   buttonLabel="Löschen"
                   buttonClassName="self-start rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 sm:self-auto"

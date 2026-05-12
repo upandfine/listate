@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { count, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { deleteAccount } from '@/app/actions';
+import { deleteAccountFormAction } from '@/app/actions';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { getDb } from '@/db';
 import { links } from '@/db/schema';
@@ -75,7 +75,7 @@ export default async function SettingsPage() {
         </p>
         <div className="mt-3">
           <ConfirmButton
-            formAction={deleteAccount}
+            formAction={deleteAccountFormAction}
             buttonLabel="Konto löschen"
             buttonClassName="rounded-md border border-accent/40 bg-white px-4 py-2 text-sm font-medium text-accent hover:bg-accent hover:text-white"
             title="Konto wirklich endgültig löschen?"

@@ -7,6 +7,30 @@ import { auth } from '@/auth';
 import { getDb } from '@/db';
 import { blockedHosts, links, templates, users } from '@/db/schema';
 import {
+  actionFail,
+  actionOk,
+  actionOkData,
+  actionRedirect,
+  AuthError,
+  parseFormData,
+  PermissionError,
+  toActionFail,
+  ValidationError,
+  type ActionResult,
+} from '@/lib/actionResult';
+import {
+  blockHostSchema,
+  createTemplateSchema,
+  deleteLinkSchema,
+  deleteTemplateSchema,
+  linkIdOnlySchema,
+  testTemplatePatternSchema,
+  unblockHostSchema,
+  updateLinkOverridesSchema,
+  updateLinkSchema,
+  useTemplateSchema,
+} from '@/lib/actionSchemas';
+import {
   createTrackingLink,
   fetchOg,
   normalizeAndCheckSlug,
@@ -22,67 +46,75 @@ import {
 import { normalizeTags, tagsToString } from '@/lib/tags';
 import { ttlToExpiresAt } from '@/lib/ttl';
 
+// ---------------------------------------------------------------------------
+// Auth-Helper
+// ---------------------------------------------------------------------------
+
 async function requireUser() {
   const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error('Nicht angemeldet.');
-  }
+  if (!session?.user?.id) throw new AuthError();
   return session.user;
 }
 
 async function requireAdmin() {
   const user = await requireUser();
   if (user.role !== 'admin') {
-    throw new Error('Nur Admins.');
+    throw new PermissionError('Nur Admins.');
   }
   return user;
 }
 
-export type ActionResult =
-  | { ok: true }
-  | { ok: false; error: string };
+/**
+ * Liefert den DB-Link inkl. Berechtigung-Check.
+ * Wirft AuthError/PermissionError/ValidationError je nach Fall.
+ */
+async function requireOwnedLink(id: string) {
+  const user = await requireUser();
+  if (!id) throw new ValidationError('Link-ID fehlt.');
+  const link = getDb().select().from(links).where(eq(links.id, id)).get();
+  if (!link) throw new ValidationError('Link nicht gefunden.');
+  const isAdmin = user.role === 'admin';
+  if (link.userId !== user.id && !isAdmin) {
+    throw new PermissionError();
+  }
+  return { user, link };
+}
+
+function sanitizeOverride(value: string | undefined): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+// ---------------------------------------------------------------------------
+// updateLink — Original-URL, Slug, Tags, Ablauf
+// ---------------------------------------------------------------------------
 
 export async function updateLink(formData: FormData): Promise<ActionResult> {
   try {
-    const user = await requireUser();
-    const id = String(formData.get('id') ?? '');
-    if (!id) return { ok: false, error: 'Link-ID fehlt.' };
+    const input = parseFormData(formData, updateLinkSchema);
+    const { user, link } = await requireOwnedLink(input.id);
 
-    const db = getDb();
-    const link = db.select().from(links).where(eq(links.id, id)).get();
-    if (!link) return { ok: false, error: 'Link nicht gefunden.' };
-
-    const isAdmin = user.role === 'admin';
-    if (link.userId !== user.id && !isAdmin) {
-      return { ok: false, error: 'Keine Berechtigung.' };
-    }
-
-    const newUrlInput = String(formData.get('url') ?? '').trim();
     // Edit-Form zeigt "https://" als Präfix-Label, im Input steht aber nur
-    // der Host. Wenn kein Schema mitkommt, ergänzen wir es serverseitig –
-    // sonst schlägt jede Speicherung mit „Nur https-URLs sind erlaubt." fehl.
+    // der Host. Wenn kein Schema mitkommt, ergänzen wir es serverseitig.
+    const newUrlInput = input.url.trim();
     const newUrlRaw = newUrlInput
       ? /^https?:\/\//i.test(newUrlInput)
         ? newUrlInput
         : `https://${newUrlInput}`
       : '';
-    const slugInput = String(formData.get('slug') ?? '').trim();
-    const tagsInput = String(formData.get('tags') ?? '');
-    const ttlInput = formData.get('ttl');
-    const ttlClear = formData.get('ttlClear') === 'on';
 
-    // Slug-Validierung (kann TrackingLinkError werfen → fangen wir gleich)
-    const slug = normalizeAndCheckSlug(slugInput, id);
+    // Slug-Validierung (kann TrackingLinkError werfen)
+    const slug = normalizeAndCheckSlug(input.slug, link.id);
 
-    // Tags
-    const tags = normalizeTags(tagsInput);
+    const tags = normalizeTags(input.tags);
 
-    // TTL: 'ttl' Wert (Preset) oder ttlClear (auf null setzen) oder unverändert lassen.
+    // TTL: 'ttl' Wert (Preset) ODER ttlClear (auf null) ODER unverändert.
     let expiresAt: string | null | undefined = undefined;
-    if (ttlClear) {
+    if (input.ttlClear) {
       expiresAt = null;
-    } else if (typeof ttlInput === 'string' && ttlInput) {
-      expiresAt = ttlToExpiresAt(ttlInput);
+    } else if (input.ttl) {
+      expiresAt = ttlToExpiresAt(input.ttl);
     }
 
     // URL und OG
@@ -102,7 +134,8 @@ export async function updateLink(formData: FormData): Promise<ActionResult> {
       ogSiteName = og.siteName;
     }
 
-    db.update(links)
+    getDb()
+      .update(links)
       .set({
         originalUrl,
         ogTitle,
@@ -113,353 +146,317 @@ export async function updateLink(formData: FormData): Promise<ActionResult> {
         tags: tagsToString(tags),
         ...(expiresAt !== undefined ? { expiresAt } : {}),
       })
-      .where(eq(links.id, id))
+      .where(eq(links.id, link.id))
       .run();
 
     revalidatePath('/dashboard');
-    revalidatePath(`/links/${id}`);
-    return { ok: true };
+    revalidatePath(`/links/${link.id}`);
+    // Unused-var-Warnung umgehen: user ist hier nicht direkt verwendet,
+    // aber requireOwnedLink hat die Auth-Pruefung schon gemacht.
+    void user;
+    return actionOk();
   } catch (err) {
-    if (err instanceof TrackingLinkError) {
-      return { ok: false, error: err.message };
-    }
-    if (err instanceof Error) {
-      console.error('[updateLink] unexpected error:', err);
-      return {
-        ok: false,
-        error: 'Speichern fehlgeschlagen – Details siehe Server-Log.',
-      };
-    }
-    return { ok: false, error: 'Unbekannter Fehler.' };
+    return toActionFail(err, 'updateLink');
   }
 }
 
-export async function deleteLink(formData: FormData) {
-  const user = await requireUser();
-  const id = String(formData.get('id') ?? '');
-  if (!id) return;
+// ---------------------------------------------------------------------------
+// deleteLink
+// ---------------------------------------------------------------------------
 
-  const db = getDb();
-  const link = db
-    .select({
-      id: links.id,
-      userId: links.userId,
-      customImagePath: links.customImagePath,
-    })
-    .from(links)
-    .where(eq(links.id, id))
-    .get();
-  if (!link) return;
+export async function deleteLink(formData: FormData): Promise<ActionResult> {
+  try {
+    const input = parseFormData(formData, deleteLinkSchema);
+    const { link } = await requireOwnedLink(input.id);
 
-  const isAdmin = user.role === 'admin';
-  const isOwner = link.userId === user.id;
-  if (!isAdmin && !isOwner) {
-    throw new Error('Keine Berechtigung.');
+    getDb().delete(links).where(eq(links.id, link.id)).run();
+    if (link.customImagePath) deleteImage(link.customImagePath);
+    revalidatePath('/dashboard');
+    return actionOk();
+  } catch (err) {
+    return toActionFail(err, 'deleteLink');
   }
-
-  db.delete(links).where(eq(links.id, id)).run();
-  // Override-Bild mit aufraeumen, falls vorhanden.
-  if (link.customImagePath) deleteImage(link.customImagePath);
-  revalidatePath('/dashboard');
 }
 
-export async function blockHost(formData: FormData) {
-  const user = await requireAdmin();
+// ---------------------------------------------------------------------------
+// blockHost / unblockHost
+// ---------------------------------------------------------------------------
 
-  const rawHost = String(formData.get('host') ?? '');
-  const reasonRaw = String(formData.get('reason') ?? '').trim();
-  const reason = reasonRaw === '' ? null : reasonRaw;
-  const alsoDelete = formData.get('alsoDelete') === 'on';
+export async function blockHost(formData: FormData): Promise<ActionResult> {
+  try {
+    const input = parseFormData(formData, blockHostSchema);
+    const user = await requireAdmin();
 
-  const host = normalizeHost(rawHost);
-  if (!host || !host.includes('.')) {
-    throw new Error('Bitte einen gültigen Host angeben.');
-  }
+    const host = normalizeHost(input.host);
+    if (!host || !host.includes('.')) {
+      throw new ValidationError('Bitte einen gültigen Host angeben.');
+    }
+    const reason = input.reason.trim() === '' ? null : input.reason.trim();
 
-  const db = getDb();
-  db.insert(blockedHosts)
-    .values({ host, reason, createdBy: user.id })
-    .onConflictDoUpdate({
-      target: blockedHosts.host,
-      set: { reason, createdBy: user.id },
-    })
-    .run();
+    const db = getDb();
+    db.insert(blockedHosts)
+      .values({ host, reason, createdBy: user.id })
+      .onConflictDoUpdate({
+        target: blockedHosts.host,
+        set: { reason, createdBy: user.id },
+      })
+      .run();
 
-  if (alsoDelete) {
-    const all = db
-      .select({ id: links.id, originalUrl: links.originalUrl })
-      .from(links)
-      .all();
-    const idsToDelete: string[] = [];
-    for (const l of all) {
-      try {
-        if (normalizeHost(new URL(l.originalUrl).hostname) === host) {
-          idsToDelete.push(l.id);
+    if (input.alsoDelete) {
+      const all = db
+        .select({ id: links.id, originalUrl: links.originalUrl })
+        .from(links)
+        .all();
+      const idsToDelete: string[] = [];
+      for (const l of all) {
+        try {
+          if (normalizeHost(new URL(l.originalUrl).hostname) === host) {
+            idsToDelete.push(l.id);
+          }
+        } catch {
+          // Defekte URL ignorieren
         }
-      } catch {
-        // Defekte URL ignorieren
+      }
+      if (idsToDelete.length > 0) {
+        db.delete(links).where(inArray(links.id, idsToDelete)).run();
       }
     }
-    if (idsToDelete.length > 0) {
-      db.delete(links).where(inArray(links.id, idsToDelete)).run();
-    }
+
+    revalidatePath('/admin/blocked');
+    revalidatePath('/dashboard');
+    return actionOk();
+  } catch (err) {
+    return toActionFail(err, 'blockHost');
   }
-
-  revalidatePath('/admin/blocked');
-  revalidatePath('/dashboard');
 }
 
-export async function unblockHost(formData: FormData) {
-  await requireAdmin();
-  const host = String(formData.get('host') ?? '');
-  if (!host) return;
-
-  getDb().delete(blockedHosts).where(eq(blockedHosts.host, host)).run();
-  revalidatePath('/admin/blocked');
-}
-
-export async function deleteAccount() {
-  const user = await requireUser();
-  const db = getDb();
-  // Zuerst die Override-Bilder dieses Users einsammeln, BEVOR wir
-  // cascadend loeschen — danach gibts die Zeilen nicht mehr.
-  const orphans = db
-    .select({ path: links.customImagePath })
-    .from(links)
-    .where(eq(links.userId, user.id))
-    .all()
-    .map((r) => r.path)
-    .filter((p): p is string => Boolean(p));
-
-  // Cascade-Delete: alle Links + accounts + sessions des Users werden
-  // durch ON DELETE CASCADE in den FK-Constraints automatisch entfernt.
-  db.delete(users).where(eq(users.id, user.id)).run();
-  for (const p of orphans) deleteImage(p);
-
-  // signOut löscht das JWT-Cookie und redirected.
-  const { signOut } = await import('@/auth');
-  await signOut({ redirectTo: '/login' });
-}
-
-export async function createTemplate(formData: FormData) {
-  const user = await requireAdmin();
-
-  const label = String(formData.get('label') ?? '').trim();
-  const rawUrl = String(formData.get('url') ?? '').trim();
-  const description =
-    String(formData.get('description') ?? '').trim() || null;
-  const urlPattern =
-    String(formData.get('urlPattern') ?? '').trim() || null;
-
-  if (!label) throw new Error('Bezeichnung fehlt.');
-  if (!/^https:\/\//i.test(rawUrl)) {
-    throw new Error('URL muss mit https:// beginnen.');
-  }
-
-  let parsed: URL;
+export async function unblockHost(formData: FormData): Promise<ActionResult> {
   try {
-    parsed = new URL(rawUrl);
-  } catch {
-    throw new Error('URL ist ungültig.');
+    const input = parseFormData(formData, unblockHostSchema);
+    await requireAdmin();
+
+    getDb()
+      .delete(blockedHosts)
+      .where(eq(blockedHosts.host, input.host))
+      .run();
+    revalidatePath('/admin/blocked');
+    return actionOk();
+  } catch (err) {
+    return toActionFail(err, 'unblockHost');
   }
-
-  if (urlPattern) {
-    try {
-      new RegExp(urlPattern);
-    } catch (err) {
-      throw new Error(
-        `Pattern ist kein gültiger Regex: ${
-          err instanceof Error ? err.message : 'Fehler'
-        }`
-      );
-    }
-  }
-
-  getDb()
-    .insert(templates)
-    .values({
-      label,
-      originalUrl: parsed.toString(),
-      description,
-      urlPattern,
-      createdBy: user.id,
-    })
-    .run();
-
-  revalidatePath('/admin/templates');
-  revalidatePath('/templates');
 }
 
+// ---------------------------------------------------------------------------
+// deleteAccount
+// ---------------------------------------------------------------------------
+
+export async function deleteAccount(): Promise<ActionResult> {
+  try {
+    const user = await requireUser();
+    const db = getDb();
+
+    const orphans = db
+      .select({ path: links.customImagePath })
+      .from(links)
+      .where(eq(links.userId, user.id))
+      .all()
+      .map((r) => r.path)
+      .filter((p): p is string => Boolean(p));
+
+    db.delete(users).where(eq(users.id, user.id)).run();
+    for (const p of orphans) deleteImage(p);
+
+    // signOut wird hier NICHT aufgerufen — das ist Verantwortung des
+    // Aufrufers (UI), der nach dem ok-Result die Logout-Action triggert
+    // ODER ein Redirect macht. Damit bleibt deleteAccount testbar.
+    return actionRedirect('/login');
+  } catch (err) {
+    return toActionFail(err, 'deleteAccount');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Templates
+// ---------------------------------------------------------------------------
+
+export async function createTemplate(
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const input = parseFormData(formData, createTemplateSchema);
+    const user = await requireAdmin();
+
+    let parsed: URL;
+    try {
+      parsed = new URL(input.url);
+    } catch {
+      throw new ValidationError('URL ist ungültig.');
+    }
+
+    if (input.urlPattern) {
+      try {
+        new RegExp(input.urlPattern);
+      } catch (err) {
+        throw new ValidationError(
+          `Pattern ist kein gültiger Regex: ${
+            err instanceof Error ? err.message : 'Fehler'
+          }`
+        );
+      }
+    }
+
+    getDb()
+      .insert(templates)
+      .values({
+        label: input.label,
+        originalUrl: parsed.toString(),
+        description: input.description.trim() || null,
+        urlPattern: input.urlPattern.trim() || null,
+        createdBy: user.id,
+      })
+      .run();
+
+    revalidatePath('/admin/templates');
+    revalidatePath('/templates');
+    return actionOk();
+  } catch (err) {
+    return toActionFail(err, 'createTemplate');
+  }
+}
+
+export async function deleteTemplate(
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const input = parseFormData(formData, deleteTemplateSchema);
+    await requireAdmin();
+
+    getDb().delete(templates).where(eq(templates.id, input.id)).run();
+    revalidatePath('/admin/templates');
+    revalidatePath('/templates');
+    return actionOk();
+  } catch (err) {
+    return toActionFail(err, 'deleteTemplate');
+  }
+}
+
+/**
+ * Server-Side-Test fuer den url_pattern-Resolver. Wird vom Admin-UI
+ * direkt mit einem Object aufgerufen (nicht FormData), daher Validation
+ * via Zod auf dem Input-Object.
+ */
 export async function testTemplatePattern(input: {
   url: string;
   pattern: string;
 }): Promise<ResolveResult> {
   await requireAdmin();
-  const url = input.url.trim();
-  const pattern = input.pattern.trim();
-
-  if (!url || !/^https:\/\//i.test(url)) {
+  const parsed = testTemplatePatternSchema.safeParse({
+    url: input.url.trim(),
+    pattern: input.pattern.trim(),
+  });
+  if (!parsed.success) {
     return {
       ok: false,
       candidates: [],
-      error: 'Quell-URL muss mit https:// beginnen.',
+      error: parsed.error.issues[0]?.message ?? 'Eingabe ungültig.',
     };
   }
-  if (!pattern) {
-    return {
-      ok: false,
-      candidates: [],
-      error: 'Bitte ein Pattern angeben.',
-    };
-  }
-
-  return await resolveTemplateUrl(url, pattern);
+  return await resolveTemplateUrl(parsed.data.url, parsed.data.pattern);
 }
 
-export async function deleteTemplate(formData: FormData) {
-  await requireAdmin();
-  const id = String(formData.get('id') ?? '');
-  if (!id) return;
-
-  getDb().delete(templates).where(eq(templates.id, id)).run();
-  revalidatePath('/admin/templates');
-  revalidatePath('/templates');
-}
-
-export async function useTemplate(formData: FormData) {
-  const user = await requireUser();
-  const templateId = String(formData.get('templateId') ?? '');
-  if (!templateId) throw new Error('Template-ID fehlt.');
-
-  const template = getDb()
-    .select()
-    .from(templates)
-    .where(eq(templates.id, templateId))
-    .get();
-  if (!template) throw new Error('Vorlage nicht gefunden.');
-
-  // Wenn ein url_pattern hinterlegt ist, wird die Quell-URL geladen,
-  // alle href-Werte extrahiert und der erste Match als Ziel-URL verwendet.
-  let targetUrl = template.originalUrl;
-  if (template.urlPattern) {
-    const result = await resolveTemplateUrl(
-      template.originalUrl,
-      template.urlPattern
-    );
-    if (!result.ok || !result.resolved) {
-      throw new Error(
-        result.error ??
-          'Quellseite enthielt keinen Link, der zum Pattern passt.'
-      );
-    }
-    targetUrl = result.resolved;
-  }
-
-  let created;
+export async function useTemplate(
+  formData: FormData
+): Promise<ActionResult> {
   try {
-    created = await createTrackingLink({
-      rawUrl: targetUrl,
-      userId: user.id,
-      expiresAt: null,
-    });
-  } catch (err) {
-    if (err instanceof TrackingLinkError) {
-      throw new Error(err.message);
+    const input = parseFormData(formData, useTemplateSchema);
+    const user = await requireUser();
+
+    const template = getDb()
+      .select()
+      .from(templates)
+      .where(eq(templates.id, input.templateId))
+      .get();
+    if (!template) throw new ValidationError('Vorlage nicht gefunden.');
+
+    let targetUrl = template.originalUrl;
+    if (template.urlPattern) {
+      const result = await resolveTemplateUrl(
+        template.originalUrl,
+        template.urlPattern
+      );
+      if (!result.ok || !result.resolved) {
+        throw new ValidationError(
+          result.error ??
+            'Quellseite enthielt keinen Link, der zum Pattern passt.'
+        );
+      }
+      targetUrl = result.resolved;
     }
-    throw err;
-  }
 
-  revalidatePath('/dashboard');
-  revalidatePath('/templates');
-  // Redirect zur /templates mit just-created-Marker, damit Erfolgs-Card oben erscheint.
-  redirect(`/templates?created=${created.id}`);
+    let created;
+    try {
+      created = await createTrackingLink({
+        rawUrl: targetUrl,
+        userId: user.id,
+        expiresAt: null,
+      });
+    } catch (err) {
+      if (err instanceof TrackingLinkError) {
+        throw new ValidationError(err.message);
+      }
+      throw err;
+    }
+
+    revalidatePath('/dashboard');
+    revalidatePath('/templates');
+    return actionRedirect(`/templates?created=${created.id}`);
+  } catch (err) {
+    return toActionFail(err, 'useTemplate');
+  }
 }
 
 // ---------------------------------------------------------------------------
-// OG-Override-Actions: Text-Felder + Bild-Upload.
+// OG-Override-Actions
 // ---------------------------------------------------------------------------
 
-/**
- * Liefert den DB-Link inkl. Berechtigung-Check.
- * Wirft TrackingLinkError 403 bei fehlender Berechtigung, 404 bei
- * nicht-existentem Link.
- */
-async function requireOwnedLink(id: string) {
-  const user = await requireUser();
-  if (!id) throw new TrackingLinkError('Link-ID fehlt.', 400);
-  const link = getDb().select().from(links).where(eq(links.id, id)).get();
-  if (!link) throw new TrackingLinkError('Link nicht gefunden.', 400);
-  const isAdmin = user.role === 'admin';
-  if (link.userId !== user.id && !isAdmin) {
-    throw new TrackingLinkError('Keine Berechtigung.', 403);
-  }
-  return { user, link };
-}
-
-/**
- * Setzt Text-Overrides (Title/Description/SiteName) und das image_hidden-Flag.
- * Leere Strings werden als NULL gespeichert (= „nutze og_*-Wert").
- */
 export async function updateLinkOverrides(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    const id = String(formData.get('id') ?? '');
-    const { link } = await requireOwnedLink(id);
-
-    const customTitle = sanitizeOverride(formData.get('customTitle'));
-    const customDescription = sanitizeOverride(
-      formData.get('customDescription')
-    );
-    const customSiteName = sanitizeOverride(formData.get('customSiteName'));
-    const imageHidden = formData.get('imageHidden') === 'on' ? 1 : 0;
+    const input = parseFormData(formData, updateLinkOverridesSchema);
+    const { link } = await requireOwnedLink(input.id);
 
     getDb()
       .update(links)
-      .set({ customTitle, customDescription, customSiteName, imageHidden })
+      .set({
+        customTitle: sanitizeOverride(input.customTitle),
+        customDescription: sanitizeOverride(input.customDescription),
+        customSiteName: sanitizeOverride(input.customSiteName),
+        imageHidden: input.imageHidden ? 1 : 0,
+      })
       .where(eq(links.id, link.id))
       .run();
 
     revalidatePath('/dashboard');
     revalidatePath(`/links/${link.id}`);
     revalidatePath(`/t/${link.id}`);
-    return { ok: true };
+    return actionOk();
   } catch (err) {
-    if (err instanceof TrackingLinkError) {
-      return { ok: false, error: err.message };
-    }
-    if (err instanceof Error) {
-      console.error('[updateLinkOverrides] unexpected:', err);
-      return { ok: false, error: 'Speichern fehlgeschlagen.' };
-    }
-    return { ok: false, error: 'Unbekannter Fehler.' };
+    return toActionFail(err, 'updateLinkOverrides');
   }
 }
 
-function sanitizeOverride(value: FormDataEntryValue | null): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
-}
-
-/**
- * Setzt das Override-Bild aus einer hochgeladenen Datei. Erwartet ein
- * Feld `image` als File im FormData. Das Bild wird auf Magic-Bytes
- * validiert und unter <DB_DIR>/og-images/<linkId>-<hash>.<ext> abgelegt.
- *
- * Das vorherige Override-Bild dieses Links wird automatisch ueberschrieben
- * (siehe writeImage / previousFilename).
- */
 export async function uploadLinkImage(
   formData: FormData
 ): Promise<ActionResult> {
   try {
+    // ID separat validieren — File ist nicht im Zod-Schema.
     const id = String(formData.get('id') ?? '');
     const { link } = await requireOwnedLink(id);
 
     const file = formData.get('image');
     if (!(file instanceof File) || file.size === 0) {
-      return { ok: false, error: 'Keine Datei hochgeladen.' };
+      throw new ValidationError('Keine Datei hochgeladen.');
     }
     const buf = new Uint8Array(await file.arrayBuffer());
 
@@ -478,30 +475,36 @@ export async function uploadLinkImage(
     revalidatePath('/dashboard');
     revalidatePath(`/links/${link.id}`);
     revalidatePath(`/t/${link.id}`);
-    return { ok: true };
+    return actionOkData({ filename: result.filename });
   } catch (err) {
-    if (err instanceof TrackingLinkError) {
-      return { ok: false, error: err.message };
+    // writeImage wirft Plain-Error mit Validierungs-Message
+    // ("Format nicht erkannt." etc.). Lass die direkt durch.
+    if (
+      err instanceof Error &&
+      !(err instanceof AuthError) &&
+      !(err instanceof PermissionError) &&
+      !(err instanceof ValidationError)
+    ) {
+      // writeImage's Error-Messages sind benutzerfreundlich (Validation-
+      // Texte aus lib/imageStorage), nicht generisch wegmappen.
+      if (
+        err.message.startsWith('Format nicht erkannt') ||
+        err.message.startsWith('Datei ist groesser') ||
+        err.message.startsWith('Datei ist leer')
+      ) {
+        return actionFail(err.message);
+      }
     }
-    if (err instanceof Error) {
-      console.error('[uploadLinkImage] unexpected:', err);
-      return { ok: false, error: err.message };
-    }
-    return { ok: false, error: 'Unbekannter Fehler.' };
+    return toActionFail(err, 'uploadLinkImage');
   }
 }
 
-/**
- * Setzt das Override-Bild zurueck (custom_image_path = NULL,
- * Datei wird geloescht). image_hidden bleibt unangetastet, weil
- * das ein separater User-Wille ist.
- */
 export async function clearLinkImageOverride(
   formData: FormData
 ): Promise<ActionResult> {
   try {
-    const id = String(formData.get('id') ?? '');
-    const { link } = await requireOwnedLink(id);
+    const input = parseFormData(formData, linkIdOnlySchema);
+    const { link } = await requireOwnedLink(input.id);
 
     if (link.customImagePath) deleteImage(link.customImagePath);
 
@@ -514,16 +517,78 @@ export async function clearLinkImageOverride(
     revalidatePath('/dashboard');
     revalidatePath(`/links/${link.id}`);
     revalidatePath(`/t/${link.id}`);
-    return { ok: true };
+    return actionOk();
   } catch (err) {
-    if (err instanceof TrackingLinkError) {
-      return { ok: false, error: err.message };
-    }
-    if (err instanceof Error) {
-      console.error('[clearLinkImageOverride] unexpected:', err);
-      return { ok: false, error: 'Loeschen fehlgeschlagen.' };
-    }
-    return { ok: false, error: 'Unbekannter Fehler.' };
+    return toActionFail(err, 'clearLinkImageOverride');
   }
 }
 
+// ---------------------------------------------------------------------------
+// Redirect-Bridge: Aufrufer, die ein redirect-Result erwarten, koennen
+// dieses Helper am Ende der Action verwenden. Es ruft next/navigation
+// auf, wenn das Result einen redirect enthaelt, oder gibt das Result
+// zurueck.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Form-Action-Wrapper.
+//
+// Server-Components, die direkt `<form action={fn}>` nutzen, erwarten
+// `Promise<void>`. Unsere Actions geben jetzt ActionResult zurueck. Pro
+// betroffener Action wird hier ein dunner Wrapper exportiert, der:
+//  - das Result verwirft (Form-Action hat kein UI-State, also kein
+//    inline-Display moeglich),
+//  - bei redirect-Result `redirect()` aufruft,
+//  - bei Fehler nur loggt — der Aufrufer sieht das nicht direkt.
+//
+// Client-Components mit eigenem State (EditLinkButton,
+// PreviewOverrideButton, CreateLinkForm, TemplateForm) rufen die
+// originalen ActionResult-Functions auf und behandeln den Fehler im UI.
+// ---------------------------------------------------------------------------
+
+async function executeOrRedirect(
+  result: ActionResult,
+  context: string
+): Promise<void> {
+  if (result.ok && 'redirect' in result) {
+    redirect(result.redirect);
+  }
+  if (!result.ok) {
+    console.error(`[${context}] action returned error:`, result.error);
+  }
+}
+
+export async function deleteLinkFormAction(formData: FormData): Promise<void> {
+  await executeOrRedirect(await deleteLink(formData), 'deleteLink');
+}
+
+export async function blockHostFormAction(formData: FormData): Promise<void> {
+  await executeOrRedirect(await blockHost(formData), 'blockHost');
+}
+
+export async function unblockHostFormAction(
+  formData: FormData
+): Promise<void> {
+  await executeOrRedirect(await unblockHost(formData), 'unblockHost');
+}
+
+export async function deleteTemplateFormAction(
+  formData: FormData
+): Promise<void> {
+  await executeOrRedirect(await deleteTemplate(formData), 'deleteTemplate');
+}
+
+export async function useTemplateFormAction(
+  formData: FormData
+): Promise<void> {
+  // useTemplate ist eine Server-Action, kein React-Hook. ESLint
+  // matched faelschlicherweise auf die `use*`-Namens-Konvention.
+  // Sauberere Loesung waere Umbenennung in `applyTemplate` — als
+  // BACKLOG-Eintrag fuer die spaetere Action-Umbenennungs-Welle.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  await executeOrRedirect(await useTemplate(formData), 'useTemplate');
+}
+
+export async function deleteAccountFormAction(): Promise<void> {
+  await executeOrRedirect(await deleteAccount(), 'deleteAccount');
+}

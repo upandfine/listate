@@ -12,7 +12,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { deleteLink } from '@/app/actions';
+import { deleteLinkFormAction } from '@/app/actions';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
 import { CopyButton } from '@/app/components/CopyButton';
 import { EditLinkButton } from '@/app/components/EditLinkButton';
@@ -521,7 +521,7 @@ export default async function DashboardPage({
                         }}
                       />
                       <ConfirmButton
-                        formAction={deleteLink}
+                        formAction={deleteLinkFormAction}
                         hiddenFields={{ id: link.id }}
                         buttonAriaLabel="Link löschen"
                         buttonClassName="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
