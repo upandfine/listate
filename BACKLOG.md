@@ -362,13 +362,21 @@ Wartbarkeit langfristig sauber bleibt.
 - **O**pen/Closed: Resolver-Pipeline (Block-Liste → Adult → Safe Browsing)
   als Chain-of-Responsibility refaktorisieren. Neue Filter ohne
   Änderung am Aufrufer einhängbar.
+  **Status:** offen, aber niedrige Prioritaet. Aktueller Code (50 Zeilen
+  inline in `validateTrackingUrl`) ist gut lesbar; Chain-Refactor wuerde
+  Boilerplate ohne aktuellen Vorteil hinzufuegen. Sinnvoll, sobald ein
+  neuer Filter konkret ansteht (z. B. Phishing-Domain-Heuristik, neue
+  Threat-Quelle).
 - **L**iskov: keine offensichtlichen Verstöße.
 - **I**nterface Segregation: `Database`-Pass-Through-Args reduzieren –
   Helper bekommen nur `db`, was sie brauchen, statt der ganzen Drizzle-
   Instanz. (Eher kosmetisch.)
-- **D**ependency Inversion: Helper wie `safeBrowsing` und `resolveTemplateUrl`
-  hängen direkt am `fetch`-Global. Für Testbarkeit eine `HttpClient`-
-  Abstraktion injizieren.
+- ~~**D**ependency Inversion~~: umgesetzt mit [`lib/http.ts`](lib/http.ts):
+  `HttpClient = typeof fetch`-Type-Alias, `safeBrowsing` und
+  `resolveTemplateUrl` akzeptieren optionalen `http`-Parameter
+  (Default = global fetch). Tests koennen den Client direkt injizieren
+  statt via `vi.stubGlobal`. Bestehende Tests weiter gruen (Default-
+  Pfad nutzt global fetch).
 
 #### Reihenfolge-Empfehlung
 

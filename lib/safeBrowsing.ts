@@ -6,6 +6,7 @@
  * ist die Funktion ein No-Op und liefert "safe" zurück. So bleibt die
  * App in lokaler Entwicklung und in Setups ohne Key voll funktionsfähig.
  */
+import { defaultHttpClient, type HttpClient } from './http';
 
 const ENDPOINT = 'https://safebrowsing.googleapis.com/v4/threatMatches:find';
 
@@ -38,7 +39,8 @@ export interface SafeBrowsingResult {
  * Workflow nicht blockieren, wenn Google gerade schluckt.
  */
 export async function checkSafeBrowsing(
-  url: string
+  url: string,
+  http: HttpClient = defaultHttpClient
 ): Promise<SafeBrowsingResult> {
   const apiKey = process.env.GOOGLE_SAFE_BROWSING_API_KEY;
   if (!apiKey) {
@@ -47,7 +49,7 @@ export async function checkSafeBrowsing(
 
   let response: Response;
   try {
-    response = await fetch(`${ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
+    response = await http(`${ENDPOINT}?key=${encodeURIComponent(apiKey)}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       signal: AbortSignal.timeout(4000),

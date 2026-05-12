@@ -3,6 +3,7 @@
  * ersten, der dem Pattern (Regex) entspricht. Verwendet wird der so
  * ermittelte URL als finale Tracking-Ziel-URL.
  */
+import { defaultHttpClient, type HttpClient } from './http';
 
 const USER_AGENT =
   'Mozilla/5.0 (compatible; ListateBot/1.0; +https://listate.de/) AppleWebKit/537.36';
@@ -23,7 +24,8 @@ export interface ResolveResult {
  */
 export async function resolveTemplateUrl(
   sourceUrl: string,
-  pattern: string
+  pattern: string,
+  http: HttpClient = defaultHttpClient
 ): Promise<ResolveResult> {
   let regex: RegExp;
   try {
@@ -40,7 +42,7 @@ export async function resolveTemplateUrl(
 
   let html: string;
   try {
-    const res = await fetch(sourceUrl, {
+    const res = await http(sourceUrl, {
       headers: { 'user-agent': USER_AGENT },
       redirect: 'follow',
       signal: AbortSignal.timeout(8000),
