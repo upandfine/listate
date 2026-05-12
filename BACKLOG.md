@@ -180,22 +180,37 @@ für jeden weiteren Pull-Request machen.
      401-Fall nicht unterscheiden. Test bildet das Ist-Verhalten ab;
      saubere Trennung steht in Feature D Punkt 4.
 
-5. **E2E-Setup (3 h)**
-   - `playwright.config.ts` mit Dev-Server-Auto-Start.
-   - `@cucumber/cucumber` + Playwright-Bridge.
-   - Eigenes `tests/e2e/world.ts` für Page + DB.
+5. ~~**E2E-Setup (3 h)**~~ — **umgesetzt**
+   - [`playwright.config.ts`](playwright.config.ts) mit Dev-Server-
+     Auto-Start auf Port 3041 (eigener Port, kein Konflikt mit Port
+     3000). Eigene Test-DB `data/e2e-test.db`, `DEV_AUTH_BYPASS=true`.
+   - `globalSetup` raeumt Tabellen-Inhalte via SQL DELETE auf (NICHT
+     File-Loeschung, weil Dev-Server beim Health-Check vor dem Setup
+     schon eine Connection geoeffnet hat → File-Delete wuerde Phantom-
+     Handle erzeugen, der zu FOREIGN KEY-Violations fuehrt). og-images-
+     Verzeichnis bleibt File-System-basiert.
+   - **Bewusst KEIN playwright-bdd / Cucumber:** Letzte playwright-bdd-
+     Version (8.5.0) inkompatibel mit Playwright 1.60. Pure
+     Playwright-Tests in TypeScript, Gherkin-Specs unter `features/`
+     bleiben als Behavior-Doku.
 
-6. **Step-Definitions schreiben (4–6 h)**
-   - Common Steps: „ich bin als X angemeldet", „ich rufe URL auf",
-     „ich sehe Text Y".
-   - Pro Feature ggf. spezifische Steps (z. B. „Klick-Counter erhöht").
+6. **Step-Definitions schreiben** — teilweise umgesetzt
+   - [`tests/e2e/smoke.spec.ts`](tests/e2e/smoke.spec.ts): 6 Smoke-
+     Tests fuer die Hauptpfade (Health, Landing, Login + Dashboard,
+     Tracking-Link-Erstellung, Settings/Datenexport, Crawler-Vorschau
+     mit OG-Meta-Tags). Laeuft in 7s lokal.
+   - **Offen:** Tests fuer Edit-Link, Tags-Filter, Pagination, Vorschau-
+     Override, Template-Erzeugung, Admin-Blockliste, Account-Loeschung
+     — 1:1 zu den anderen Gherkin-Features. Aufwand: 2–3 h pro
+     Feature-Block.
 
-7. ~~**CI-Workflow (1 h)**~~ — **umgesetzt (Basis-Pipeline)**
+7. ~~**CI-Workflow (1 h)**~~ — **umgesetzt + E2E-Job**
    - [`.github/workflows/ci.yml`](.github/workflows/ci.yml): bei jedem
-     Push/PR auf `main` → `typecheck`, `test:cov`, `build`.
-   - Coverage-Report wird als Artifact 14 Tage aufbewahrt.
+     Push/PR auf `main` → quality-Job (lint, typecheck, test:cov, build)
+     + e2e-Job (Playwright-Chromium, abhaengig von quality).
+   - Coverage-Report + Playwright-HTML-Report als Artifacts mit 14 Tagen
+     Retention.
    - `concurrency`-Gruppe bricht ältere Runs auf demselben Branch ab.
-   - **Offen:** E2E-Job (nightly cron), sobald Schritt 5/6 stehen.
 
 **Realistischer Restaufwand: ~10–12 h**, verteilt auf 2–3 weitere Sessions.
 

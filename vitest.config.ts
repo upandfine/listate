@@ -6,6 +6,9 @@ export default defineConfig({
   },
   test: {
     include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
+    // Playwright-E2E-Tests laufen ueber `npm run test:e2e` mit eigenem
+    // Runner — vitest soll sie nicht aufgreifen.
+    exclude: ['tests/e2e/**', 'node_modules/**', '.next/**'],
     environment: 'node',
     globals: false,
     coverage: {
