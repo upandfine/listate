@@ -57,6 +57,14 @@ describe('lookupCountry', () => {
     expect(lookupCountry('203.0.113.99')).toBeNull();
   });
 
+  it('liefert null, wenn geoip einen leeren Country-String liefert (Anycast)', () => {
+    // geoip-lite gibt fuer 1.1.1.1 (Cloudflare-Anycast) ein Objekt mit
+    // `country: ""` zurueck — wir wollen das wie null behandeln, nicht
+    // einen leeren Code in die DB schreiben.
+    mocks.lookup.mockReturnValue({ country: '' });
+    expect(lookupCountry('1.1.1.1')).toBeNull();
+  });
+
   it('faengt geoip-Fehler ab und liefert null', () => {
     mocks.lookup.mockImplementation(() => {
       throw new Error('boom');

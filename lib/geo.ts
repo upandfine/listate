@@ -34,7 +34,11 @@ export function lookupCountry(ip: string | null | undefined): string | null {
 
   try {
     const hit = geoip.lookup(cleaned);
-    return hit?.country ?? null;
+    // geoip-lite liefert fuer Anycast-Ranges (z. B. 1.1.1.1) ein Objekt
+    // mit `country: ""`. Leeren String wie null behandeln, damit wir
+    // keine "leeren" Codes in die DB schreiben.
+    const country = hit?.country?.trim();
+    return country ? country : null;
   } catch {
     return null;
   }
