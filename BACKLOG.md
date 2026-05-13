@@ -600,10 +600,35 @@ Begruendungs-Kommentar disabled, gehoeren zum spaeteren D-Refactor),
 `@typescript-eslint/no-unused-vars` mit `^_`-Pattern fuer absichtlich
 ungenutzte Args konfiguriert.
 
-**G5. npm audit: 7 moderate Warnings in transitiven Dev-Deps**
-Stand heute alle in `@esbuild-kit/*`, `drizzle-kit`, `esbuild`,
-`postcss`, `next-auth` — alles transitive bzw. Dev-Deps. Sollte
-nach jedem `npm update` neu geprüft werden. Kein aktuelles Risiko.
+**G5. npm audit: 9 moderate Warnings in transitiven Deps (Stand 2026-05-13)**
+Drei Wurzel-Vulnerabilities, alle transitiv und im konkreten Use-Case
+nicht ausnutzbar:
+
+1. **`esbuild@0.18.20`** via `drizzle-kit > @esbuild-kit/esm-loader >
+   @esbuild-kit/core-utils` ([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99))
+   — Dev-Server CORS-Bypass. `drizzle-kit` laeuft nur lokal via
+   `npm run db:generate`; kein Dev-Server, keine Production-Exposure.
+   `@esbuild-kit/*` ist archiviert, kein Upstream-Fix in Sicht.
+   `drizzle-kit@latest` ist bereits 0.31.10 (= unsere Version).
+2. **`postcss@8.4.31`** in `next@16.2.6` intern gebundelt
+   ([GHSA-qx2v-qp2m-jg93](https://github.com/advisories/GHSA-qx2v-qp2m-jg93))
+   — XSS via unescaped `</style>` im CSS-Stringify-Output. Wir
+   produzieren kein CSS aus User-Input. Direkte `postcss`-Dep ist
+   bereits 8.5.14 (sicher).
+3. **`ip-address@5.9.4`** via `geoip-lite@1.4.10`
+   ([GHSA-v2v4-37r5-5v8g](https://github.com/advisories/GHSA-v2v4-37r5-5v8g))
+   — XSS in `Address6` HTML-emitting methods. Wir nutzen nur
+   `geoip.lookup(ip).country`; HTML-Methoden werden nirgends
+   aufgerufen.
+
+**Warum nicht `npm audit fix --force`?** Schlaegt Major-Downgrades vor
+(drizzle-kit → 0.18.1, next → 9.3.3, geoip-lite → 1.2.2), wuerde die
+App brechen.
+
+**Naechster Check:** nach `npm update`, spaetestens bei naechstem
+Major-Update einer der drei Wurzel-Deps (drizzle-kit, next, geoip-lite).
+Falls Dependabot grun werden soll: `overrides` in package.json setzen
+— riskant, separate Session.
 
 ---
 
