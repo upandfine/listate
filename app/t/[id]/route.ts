@@ -4,6 +4,7 @@ import { getDb } from '@/db';
 import { clicks, links, type Link } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
 import { getDisplayOg } from '@/lib/displayOg';
+import { extractClientIp, lookupCountry } from '@/lib/geo';
 import { isExpired } from '@/lib/ttl';
 
 export const runtime = 'nodejs';
@@ -132,13 +133,18 @@ export async function GET(
 
   const userAgent = req.headers.get('user-agent');
   if (!isCrawler(userAgent)) {
+    // Geo: nur Country-Code, nie die IP. extractClientIp gibt die IP
+    // ausschliesslich an lookupCountry weiter; sie verlaesst den
+    // Request-Scope nicht und wird nirgends geloggt.
+    const countryCode = lookupCountry(extractClientIp(req.headers));
+
     // Aggregat-Counter (für schnelle Anzeige im Dashboard)
     db.update(links)
       .set({ clickCount: sql`${links.clickCount} + 1` })
       .where(eq(links.id, link.id))
       .run();
-    // Einzelner Klick mit Timestamp (für Sparkline / Verlauf)
-    db.insert(clicks).values({ linkId: link.id }).run();
+    // Einzelner Klick mit Timestamp + Country (für Sparkline / Verlauf / Geo)
+    db.insert(clicks).values({ linkId: link.id, countryCode }).run();
   }
 
   const baseUrl = await getBaseUrl();

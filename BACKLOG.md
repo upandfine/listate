@@ -27,35 +27,46 @@ Tracking-Link-Klick informieren.
   oder alle? Vermutlich erstere.
 - Per-Link-Webhook oder pro User-Account? Pro User reicht für jetzt.
 
-### B. Geo-Tracking (datenschutzfreundlich)
+### B. Geo-Tracking (datenschutzfreundlich) ✅ umgesetzt
 
-**Ziel:** Aggregierte Geo-Information (Land/Region) zu Klicks, ohne
-personenbezogene IPs zu speichern.
+**Stand:** Pro Klick wird der ISO-2-Letter-Country-Code (z. B. `DE`,
+`CH`) in `clicks.country_code` abgelegt. Die IP wird ausschliesslich
+im Request-Scope an `lookupCountry` weitergegeben und danach verworfen
+— sie wird nirgends persistiert oder geloggt.
 
-**Skizze:**
-- Bei jedem Nicht-Crawler-Klick die anfragende IP gegen eine
-  GeoIP-Datenbank (MaxMind GeoLite2 lokal oder ipinfo.io API) auflösen.
-- **Nur das Ergebnis** (z. B. `country: 'DE', region: 'BW'`) im
-  `clicks`-Eintrag speichern. IP wird nicht persistiert.
-- Klick-Detailseite zeigt zusätzlich „Top-Länder/Regionen" als Liste.
-- Admin-Stats: Welt-Heatmap pro Land.
+**Implementierung:**
+- `lib/geo.ts`: `extractClientIp` (x-forwarded-for → x-real-ip,
+  Loopback → null) + `lookupCountry` (geoip-lite, IPv6-mapped → IPv4,
+  alle Fehler → null).
+- Datenquelle: `geoip-lite` (~6 MB lokale GeoLite2-Snapshot-Daten,
+  MIT-lizenziert). Update via `npm install geoip-lite` neu.
+  Country-Granularitaet ist hinreichend stabil.
+- Schema: `clicks.country_code TEXT NULL` + Index
+  `idx_clicks_country_code`. Synchron in `db/schema.ts`,
+  `db/index.ts::bootstrap()` (mit `ensureColumn` fuer Bestands-DBs)
+  und `tests/utils/db.ts`.
+- Aggregations-Helper: `getCountryBreakdown(db, linkId, days)` in
+  `lib/clickStats.ts`, sortiert nach count desc, `null`-Klicks als
+  eigene Gruppe.
+- UI:
+  - Link-Detail-Seite (`/links/[id]`) hat eine „Herkunft"-Sektion
+    mit Top-10-Bargraph (deutsche Laender-Namen via `Intl.DisplayNames`).
+  - Admin-Stats (`/admin/stats`) hat ein „Top-Laender"-Widget mit
+    Tabelle (90 Tage, alle User).
+- `/api/export` (DSGVO Art. 20) liefert pro Klick nun
+  `{ clickedAt, country }` statt nur des Timestamps.
+- `next.config.mjs`: `geoip-lite` in `serverExternalPackages`
+  (geoip-lite laedt seine `.dat`-Dateien per `fs.readFileSync` auf
+  Module-Init, was Bundling bricht) plus
+  `outputFileTracingIncludes` fuer das standalone-Build.
+- Datenschutz-Seite (`/datenschutz`, Abschnitt 5.2) explizit
+  aktualisiert: Country-Code aus IP, IP wird nicht gespeichert,
+  keine Stadt/PLZ.
 
-**DSGVO-Punkte:**
-- Datenschutzerklärung muss erweitert werden:
-  „Beim Aufruf wird die IP-Adresse einmalig gegen eine
-   Geolocation-Datenbank aufgelöst und ausschließlich Land/Region
-   gespeichert. Die IP-Adresse selbst wird nicht persistiert."
-- Rechtsgrundlage: Art. 6 (1) f) DSGVO, berechtigtes Interesse an
-  aggregierten Reichweitenstatistiken.
-- AVV mit ipinfo.io o. Ä. nötig falls externe API; mit GeoLite2
-  lokal entfällt das.
-
-**Schema-Skizze:**
-- `clicks.country TEXT NULL`, `clicks.region TEXT NULL`.
-
-**Implementierungs-Empfehlung:** GeoLite2 lokal (kostenlos für
-Non-Commercial, monatliches Update via Skript) → keine externe
-Abhängigkeit, keine Drittlands-Übermittlung.
+**Tests:** 15 Unit-Tests in `tests/unit/geo.test.ts`,
+4 neue Integration-Tests in `tests/integration/t-route.test.ts`,
+5 in `tests/integration/clickStats.test.ts` (`getCountryBreakdown`),
+plus erweiterter `api-export`-Test fuer das `country`-Feld.
 
 ### E. Testing-Strategie + Gherkin-Automatisierung
 

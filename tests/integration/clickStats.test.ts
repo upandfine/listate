@@ -5,6 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  getCountryBreakdown,
   getDailyClicks,
   getHeatmap,
   getRecentClicks,
@@ -229,5 +230,97 @@ describe('getRecentClicks', () => {
 
     expect(getRecentClicks(h.db, a, 10)).toEqual(['2026-05-08 09:00:00']);
     expect(getRecentClicks(h.db, b, 10)).toEqual(['2026-05-08 10:00:00']);
+  });
+});
+
+describe('getCountryBreakdown', () => {
+  let h: TestDbHandle;
+
+  beforeEach(() => {
+    h = createTestDb();
+    vi.useFakeTimers();
+    vi.setSystemTime(FIXED_NOW);
+  });
+
+  afterEach(() => {
+    h.close();
+    vi.useRealTimers();
+  });
+
+  it('liefert leere Liste bei Link ohne Klicks', () => {
+    const userId = seedUser(h.sqlite);
+    const linkId = seedLink(h.sqlite, { userId });
+    expect(getCountryBreakdown(h.db, linkId, 90)).toEqual([]);
+  });
+
+  it('aggregiert Klicks pro Country, sortiert nach count desc', () => {
+    const userId = seedUser(h.sqlite);
+    const linkId = seedLink(h.sqlite, { userId });
+
+    seedClicks(h.sqlite, linkId, [
+      ['2026-05-08 09:00:00', 'DE'],
+      ['2026-05-08 10:00:00', 'DE'],
+      ['2026-05-08 11:00:00', 'DE'],
+      ['2026-05-08 12:00:00', 'CH'],
+      ['2026-05-08 13:00:00', 'CH'],
+      ['2026-05-08 14:00:00', 'AT'],
+    ]);
+
+    expect(getCountryBreakdown(h.db, linkId, 90)).toEqual([
+      { country: 'DE', count: 3 },
+      { country: 'CH', count: 2 },
+      { country: 'AT', count: 1 },
+    ]);
+  });
+
+  it('aggregiert Klicks ohne Country-Code separat (country = null)', () => {
+    const userId = seedUser(h.sqlite);
+    const linkId = seedLink(h.sqlite, { userId });
+
+    seedClicks(h.sqlite, linkId, [
+      ['2026-05-08 09:00:00', 'DE'],
+      ['2026-05-08 10:00:00', null],
+      ['2026-05-08 11:00:00', null],
+    ]);
+
+    const result = getCountryBreakdown(h.db, linkId, 90);
+    // null kommt als eigene Gruppe (mit 2 Klicks → vor DE).
+    expect(result).toEqual([
+      { country: null, count: 2 },
+      { country: 'DE', count: 1 },
+    ]);
+  });
+
+  it('ignoriert Klicks ausserhalb des Tages-Fensters', () => {
+    const userId = seedUser(h.sqlite);
+    const linkId = seedLink(h.sqlite, { userId });
+
+    seedClicks(h.sqlite, linkId, [
+      ['2026-01-01 09:00:00', 'DE'], // > 90 Tage her
+      ['2026-05-08 10:00:00', 'CH'],
+    ]);
+
+    expect(getCountryBreakdown(h.db, linkId, 90)).toEqual([
+      { country: 'CH', count: 1 },
+    ]);
+  });
+
+  it('zieht Klicks anderer Links NICHT mit', () => {
+    const userId = seedUser(h.sqlite);
+    const a = seedLink(h.sqlite, { userId, id: 'a' });
+    const b = seedLink(h.sqlite, { userId, id: 'b' });
+
+    seedClicks(h.sqlite, a, [['2026-05-08 09:00:00', 'DE']]);
+    seedClicks(h.sqlite, b, [
+      ['2026-05-08 10:00:00', 'CH'],
+      ['2026-05-08 11:00:00', 'CH'],
+    ]);
+
+    expect(getCountryBreakdown(h.db, a, 90)).toEqual([
+      { country: 'DE', count: 1 },
+    ]);
+    expect(getCountryBreakdown(h.db, b, 90)).toEqual([
+      { country: 'CH', count: 2 },
+    ]);
   });
 });

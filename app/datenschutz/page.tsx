@@ -124,13 +124,33 @@ export default function DatenschutzPage() {
         <h3>5.2 Beim Aufruf eines Tracking-Links</h3>
         <p>
           Wenn ein Nutzer einen Tracking-Link aufruft, wird in der
-          Datenbank ausschließlich ein{' '}
-          <strong>aggregierter Klick-Zähler</strong> für diesen Link um
-          &nbsp;1 erhöht. Es werden in der Anwendungsdatenbank{' '}
-          <strong>keine personenbezogenen Einzeldaten</strong>{' '}
-          (insbesondere keine IP-Adressen, keine User-Agent-Strings, keine
-          Zeitstempel pro Klick, keine Cookies) gespeichert. Anschließend
-          erfolgt eine Weiterleitung auf die Original-URL.
+          Datenbank gespeichert:
+        </p>
+        <ul>
+          <li>der aggregierte Klick-Zähler des Links wird um&nbsp;1 erhöht,</li>
+          <li>
+            ein Einzeleintrag mit Zeitstempel (UTC) zur Darstellung des
+            zeitlichen Verlaufs in der Statistik des Link-Inhabers,
+          </li>
+          <li>
+            das aus der IP-Adresse abgeleitete{' '}
+            <strong>Herkunftsland</strong> (zwei Buchstaben, z.&nbsp;B.{' '}
+            <code>DE</code>, <code>CH</code>) — nicht jedoch die
+            IP-Adresse selbst.
+          </li>
+        </ul>
+        <p>
+          Es werden in der Anwendungsdatenbank{' '}
+          <strong>
+            keine IP-Adressen, keine User-Agent-Strings und keine Cookies
+          </strong>{' '}
+          gespeichert. Die IP wird ausschließlich kurzzeitig im
+          Arbeitsspeicher zur Country-Code-Ermittlung verwendet
+          (Datenbank: <code>geoip-lite</code>, lokal vorgehalten, kein
+          externer Aufruf) und anschließend verworfen. Eine Stadt-,
+          Postleitzahl- oder feinere geografische Auswertung findet nicht
+          statt. Anschließend erfolgt eine Weiterleitung auf die
+          Original-URL.
         </p>
         <p>
           Aufrufe durch erkannte Crawler von Messengern und sozialen
@@ -192,9 +212,12 @@ export default function DatenschutzPage() {
             Wochen.
           </li>
           <li>
-            <strong>Tracking-Links und aggregierte Klickzahlen:</strong>{' '}
-            bis zur Löschung durch den Verantwortlichen oder bis der Zweck
-            entfällt.
+            <strong>
+              Tracking-Links, aggregierte Klickzahlen, Klick-Zeitstempel
+              und Country-Codes:
+            </strong>{' '}
+            bis zur Löschung durch den Inhaber des Links oder bis der
+            Zweck entfällt.
           </li>
         </ul>
       </section>

@@ -64,14 +64,16 @@ function bootstrapTestSchema(sqlite: Database.Database) {
     );
 
     CREATE TABLE clicks (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      link_id     TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
-      clicked_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      link_id      TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+      clicked_at   TEXT NOT NULL DEFAULT (datetime('now')),
+      country_code TEXT
     );
 
     CREATE UNIQUE INDEX idx_links_slug_unique ON links(slug) WHERE slug IS NOT NULL;
     CREATE INDEX idx_clicks_link_id ON clicks(link_id);
     CREATE INDEX idx_clicks_clicked_at ON clicks(clicked_at);
+    CREATE INDEX idx_clicks_country_code ON clicks(country_code);
 
     CREATE TABLE templates (
       id           TEXT PRIMARY KEY,
@@ -184,16 +186,23 @@ export function seedLink(
 /**
  * Schreibt N Klicks fuer einen Link mit explizit gesetzten Zeitstempeln.
  * Format wie in der Produktion: 'YYYY-MM-DD HH:MM:SS' (UTC).
+ *
+ * Akzeptiert entweder reine Timestamp-Strings oder Tupel mit
+ * `[timestamp, countryCode]`, wenn das Geo-Feld gesetzt werden soll.
  */
 export function seedClicks(
   sqlite: Database.Database,
   linkId: string,
-  timestamps: string[]
+  entries: (string | [string, string | null])[]
 ): void {
   const stmt = sqlite.prepare(
-    `INSERT INTO clicks (link_id, clicked_at) VALUES (?, ?)`
+    `INSERT INTO clicks (link_id, clicked_at, country_code) VALUES (?, ?, ?)`
   );
-  for (const ts of timestamps) {
-    stmt.run(linkId, ts);
+  for (const entry of entries) {
+    if (typeof entry === 'string') {
+      stmt.run(linkId, entry, null);
+    } else {
+      stmt.run(linkId, entry[0], entry[1]);
+    }
   }
 }

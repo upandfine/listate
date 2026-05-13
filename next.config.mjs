@@ -64,10 +64,14 @@ const securityHeaders = [
 const nextConfig = {
   output: 'standalone',
   // Next 15+: aus experimental.* nach top-level gewandert.
-  serverExternalPackages: ['better-sqlite3'],
+  // geoip-lite laedt seine .dat-Dateien zur Module-Init-Zeit per
+  // fs.readFileSync mit relativen Pfaden — Bundling bricht das. Daher
+  // extern halten und die data/-Dateien fuers standalone mittracen.
+  serverExternalPackages: ['better-sqlite3', 'geoip-lite'],
   outputFileTracingIncludes: {
     '/**': [
       './node_modules/better-sqlite3/**/*',
+      './node_modules/geoip-lite/**/*',
       './lib/blocklists/**/*',
     ],
   },

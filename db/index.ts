@@ -85,9 +85,10 @@ function bootstrap(sqlite: Database.Database) {
     );
 
     CREATE TABLE IF NOT EXISTS clicks (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      link_id     TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
-      clicked_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      link_id      TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+      clicked_at   TEXT NOT NULL DEFAULT (datetime('now')),
+      country_code TEXT
     );
 
     CREATE TABLE IF NOT EXISTS blocked_hosts (
@@ -130,17 +131,21 @@ function bootstrap(sqlite: Database.Database) {
   ensureColumn(sqlite, 'links', 'custom_site_name', 'TEXT');
   ensureColumn(sqlite, 'links', 'custom_image_path', 'TEXT');
   ensureColumn(sqlite, 'links', 'image_hidden', 'INTEGER NOT NULL DEFAULT 0');
+  // Geo-Tracking (Feature B): nur Country-Code, nie IP.
+  ensureColumn(sqlite, 'clicks', 'country_code', 'TEXT');
 
   // Falls die Tabellen oder Indexe noch fehlen (alte DBs):
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS clicks (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      link_id     TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
-      clicked_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      link_id      TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+      clicked_at   TEXT NOT NULL DEFAULT (datetime('now')),
+      country_code TEXT
     );
     CREATE UNIQUE INDEX IF NOT EXISTS idx_links_slug_unique ON links(slug) WHERE slug IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_clicks_link_id ON clicks(link_id);
     CREATE INDEX IF NOT EXISTS idx_clicks_clicked_at ON clicks(clicked_at);
+    CREATE INDEX IF NOT EXISTS idx_clicks_country_code ON clicks(country_code);
 
     -- audit_log fuer alte DBs nachziehen:
     CREATE TABLE IF NOT EXISTS audit_log (

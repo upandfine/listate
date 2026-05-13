@@ -100,6 +100,9 @@ export const clicks = sqliteTable('clicks', {
   clickedAt: text('clicked_at')
     .notNull()
     .default(sql`(datetime('now'))`),
+  /** ISO 3166-1 alpha-2 (`'DE'`, `'CH'`, …) oder NULL. Aus IP via
+   *  geoip-lite; die IP selbst wird nirgends persistiert (DSGVO). */
+  countryCode: text('country_code'),
 });
 
 export const templates = sqliteTable('templates', {

@@ -51,16 +51,20 @@ export async function GET() {
           .select({
             linkId: clicks.linkId,
             clickedAt: clicks.clickedAt,
+            countryCode: clicks.countryCode,
           })
           .from(clicks)
           .where(inArray(clicks.linkId, linkIds))
           .all()
       : [];
 
-  const clicksByLink = new Map<string, string[]>();
+  const clicksByLink = new Map<
+    string,
+    { clickedAt: string; country: string | null }[]
+  >();
   for (const c of myClicks) {
     const arr = clicksByLink.get(c.linkId) ?? [];
-    arr.push(c.clickedAt);
+    arr.push({ clickedAt: c.clickedAt, country: c.countryCode });
     clicksByLink.set(c.linkId, arr);
   }
 
@@ -89,6 +93,8 @@ export async function GET() {
       createdAt: l.createdAt,
       expiresAt: l.expiresAt,
       clicks: clicksByLink.get(l.id) ?? [],
+      // Hinweis: country wird aus der IP abgeleitet (geoip-lite). Die IP
+      // selbst wird nirgends persistiert oder geloggt.
     })),
   };
 

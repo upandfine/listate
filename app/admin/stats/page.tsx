@@ -87,6 +87,21 @@ export default async function AdminStatsPage() {
     if (d >= 0 && d < 7 && h >= 0 && h < 24) grid[d][h] = r.n;
   }
 
+  // Top-Laender (90 Tage) — über alle Klicks aller Links
+  const countryRows = db
+    .select({
+      country: clicks.countryCode,
+      n: sql<number>`COUNT(*)`,
+    })
+    .from(clicks)
+    .where(sql`${clicks.clickedAt} > ${isoUtcMinusDays(90)}`)
+    .groupBy(clicks.countryCode)
+    .orderBy(desc(sql`COUNT(*)`))
+    .limit(10)
+    .all() as { country: string | null; n: number }[];
+  const countryTotal = countryRows.reduce((s, r) => s + r.n, 0);
+  const regionNames = new Intl.DisplayNames(['de'], { type: 'region' });
+
   // Top-User nach Anzahl Links + Klicks
   const topUsers = db
     .select({
@@ -212,6 +227,60 @@ export default async function AdminStatsPage() {
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* Top-Laender */}
+      <section className="space-y-3 rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+        <header>
+          <h2 className="text-base font-semibold">Top-Länder</h2>
+          <p className="text-xs text-neutral-500">
+            Aus IP abgeleitet (DSGVO: IP wird nicht gespeichert), letzte
+            90 Tage.
+          </p>
+        </header>
+        {countryRows.length === 0 ? (
+          <p className="text-sm text-neutral-500">
+            Noch keine Klicks erfasst.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-500">
+                <th className="py-1">Land</th>
+                <th className="py-1 text-right">Klicks</th>
+                <th className="py-1 text-right">Anteil</th>
+              </tr>
+            </thead>
+            <tbody>
+              {countryRows.map((r) => {
+                const pct = countryTotal === 0 ? 0 : (r.n / countryTotal) * 100;
+                const label = r.country
+                  ? `${r.country} – ${(() => {
+                      try {
+                        return regionNames.of(r.country) ?? r.country;
+                      } catch {
+                        return r.country;
+                      }
+                    })()}`
+                  : 'unbekannt';
+                return (
+                  <tr
+                    key={r.country ?? '__null__'}
+                    className="border-b border-neutral-100 last:border-0"
+                  >
+                    <td className="py-1.5 text-xs">{label}</td>
+                    <td className="py-1.5 text-right tabular-nums font-medium">
+                      {r.n}
+                    </td>
+                    <td className="py-1.5 text-right tabular-nums text-neutral-600">
+                      {pct.toFixed(1)}%
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

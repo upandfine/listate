@@ -15,6 +15,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   currentDb: null as null | unknown,
+  geoLookup: vi.fn<(ip: string) => { country: string } | null>(),
 }));
 
 vi.mock('@/db', () => ({
@@ -25,6 +26,10 @@ vi.mock('@/lib/baseUrl', () => ({
   getBaseUrl: vi.fn(async () => 'https://listate.test'),
 }));
 
+vi.mock('geoip-lite', () => ({
+  default: { lookup: mocks.geoLookup },
+}));
+
 import { GET } from '@/app/t/[id]/route';
 
 let h: TestDbHandle;
@@ -33,6 +38,7 @@ let userId: string;
 beforeEach(() => {
   h = createTestDb();
   mocks.currentDb = h.db;
+  mocks.geoLookup.mockReset();
   userId = seedUser(h.sqlite);
 });
 
@@ -261,6 +267,87 @@ describe('GET /t/[id] — Bestandsverhalten unveraendert', () => {
       .prepare(`SELECT COUNT(*) as n FROM clicks WHERE link_id = ?`)
       .get('usr') as { n: number };
     expect(clickRow.n).toBe(1);
+  });
+
+  it('schreibt country_code aus Geo-Lookup, wenn x-forwarded-for gesetzt ist', async () => {
+    seedLink(h.sqlite, { id: 'geo', userId, originalUrl: 'https://example.test' });
+    mocks.geoLookup.mockReturnValue({ country: 'DE' });
+
+    await GET(
+      new NextRequest('https://listate.test/t/geo', {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Macintosh) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120',
+          'x-forwarded-for': '203.0.113.7, 10.0.0.1',
+        },
+      }),
+      { params: Promise.resolve({ id: 'geo' }) }
+    );
+
+    expect(mocks.geoLookup).toHaveBeenCalledWith('203.0.113.7');
+    const click = h.sqlite
+      .prepare(
+        `SELECT country_code FROM clicks WHERE link_id = ? ORDER BY id DESC LIMIT 1`
+      )
+      .get('geo') as { country_code: string | null };
+    expect(click.country_code).toBe('DE');
+  });
+
+  it('country_code = NULL bei Loopback-IP (Dev-Setup)', async () => {
+    seedLink(h.sqlite, { id: 'loop', userId, originalUrl: 'https://example.test' });
+
+    await GET(
+      new NextRequest('https://listate.test/t/loop', {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Macintosh) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120',
+          'x-forwarded-for': '127.0.0.1',
+        },
+      }),
+      { params: Promise.resolve({ id: 'loop' }) }
+    );
+
+    expect(mocks.geoLookup).not.toHaveBeenCalled();
+    const click = h.sqlite
+      .prepare(
+        `SELECT country_code FROM clicks WHERE link_id = ? ORDER BY id DESC LIMIT 1`
+      )
+      .get('loop') as { country_code: string | null };
+    expect(click.country_code).toBeNull();
+  });
+
+  it('country_code = NULL, wenn kein Header gesetzt ist', async () => {
+    seedLink(h.sqlite, { id: 'noip', userId, originalUrl: 'https://example.test' });
+
+    await GET(
+      new NextRequest('https://listate.test/t/noip', {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Macintosh) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120',
+        },
+      }),
+      { params: Promise.resolve({ id: 'noip' }) }
+    );
+
+    const click = h.sqlite
+      .prepare(
+        `SELECT country_code FROM clicks WHERE link_id = ? ORDER BY id DESC LIMIT 1`
+      )
+      .get('noip') as { country_code: string | null };
+    expect(click.country_code).toBeNull();
+  });
+
+  it('Crawler-Request schreibt KEINEN clicks-Eintrag (kein Geo-Lookup)', async () => {
+    seedLink(h.sqlite, { id: 'crwl', userId, originalUrl: 'https://example.test' });
+    mocks.geoLookup.mockReturnValue({ country: 'DE' });
+
+    await call('crwl'); // crawlerReq() setzt WhatsApp-UA
+
+    expect(mocks.geoLookup).not.toHaveBeenCalled();
+    const cnt = h.sqlite
+      .prepare(`SELECT COUNT(*) as n FROM clicks WHERE link_id = ?`)
+      .get('crwl') as { n: number };
+    expect(cnt.n).toBe(0);
   });
 
   it('410 mit Hinweis-HTML bei abgelaufenem Link', async () => {

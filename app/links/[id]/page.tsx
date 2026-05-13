@@ -13,9 +13,11 @@ import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
 import {
+  getCountryBreakdown,
   getDailyClicks,
   getHeatmap,
   getRecentClicks,
+  type CountryBreakdownEntry,
 } from '@/lib/clickStats';
 import { getDisplayOg } from '@/lib/displayOg';
 import { parseTags } from '@/lib/tags';
@@ -81,6 +83,7 @@ export default async function LinkDetailPage({
   const daily = getDailyClicks(db, row.id, 30);
   const heatmap = getHeatmap(db, row.id, 90);
   const recent = getRecentClicks(db, row.id, 30);
+  const countries = getCountryBreakdown(db, row.id, 90);
 
   const totalLast30 = daily.reduce((s, d) => s + d.count, 0);
   const last7 = daily.slice(-7).reduce((s, d) => s + d.count, 0);
@@ -234,6 +237,18 @@ export default async function LinkDetailPage({
         )}
       </section>
 
+      {/* Herkunft */}
+      <section className="space-y-3 rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+        <header>
+          <h2 className="text-base font-semibold">Herkunft</h2>
+          <p className="text-xs text-neutral-500">
+            Top-Länder der letzten 90 Tage. Aus IP abgeleitet, IP wird nicht
+            gespeichert.
+          </p>
+        </header>
+        <CountryBreakdown data={countries} />
+      </section>
+
       {/* Letzte Klicks */}
       <section className="space-y-3 rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
         <header>
@@ -273,6 +288,56 @@ function Stat({ label, value }: { label: string; value: number }) {
       </div>
     </div>
   );
+}
+
+function CountryBreakdown({ data }: { data: CountryBreakdownEntry[] }) {
+  if (data.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500">
+        Noch keine Klicks in den letzten 90 Tagen.
+      </div>
+    );
+  }
+
+  const total = data.reduce((s, r) => s + r.count, 0);
+  const top = data.slice(0, 10);
+  const names = new Intl.DisplayNames(['de'], { type: 'region' });
+
+  return (
+    <ul className="space-y-1.5 text-sm">
+      {top.map((row) => {
+        const pct = total === 0 ? 0 : (row.count / total) * 100;
+        const label = row.country
+          ? `${row.country} – ${safeRegionName(names, row.country)}`
+          : 'unbekannt';
+        return (
+          <li key={row.country ?? '__null__'} className="space-y-0.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-neutral-800">{label}</span>
+              <span className="font-mono text-xs tabular-nums text-neutral-600">
+                {row.count} · {pct.toFixed(1)}%
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+              <div
+                className="h-full rounded-full bg-brand"
+                style={{ width: `${pct}%` }}
+                aria-hidden="true"
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function safeRegionName(names: Intl.DisplayNames, code: string): string {
+  try {
+    return names.of(code) ?? code;
+  } catch {
+    return code;
+  }
 }
 
 function DailyBarChart({

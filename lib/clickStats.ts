@@ -101,3 +101,37 @@ export function getRecentClicks(
     .all() as { clickedAt: string }[];
   return rows.map((r) => r.clickedAt);
 }
+
+export interface CountryBreakdownEntry {
+  /** ISO 3166-1 alpha-2 oder `null` (Lookup nicht moeglich). */
+  country: string | null;
+  count: number;
+}
+
+/**
+ * Top-Laender-Aufstellung fuer einen Link, sortiert nach Klick-Anzahl
+ * absteigend. Klicks ohne Country-Code (Loopback / unbekannte Range)
+ * werden separat als `country = null` aggregiert.
+ */
+export function getCountryBreakdown(
+  db: BetterSQLite3Database<Record<string, unknown>>,
+  linkId: string,
+  days = 90
+): CountryBreakdownEntry[] {
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - days);
+  const sinceIso = since.toISOString().slice(0, 19).replace('T', ' ');
+
+  const rows = db
+    .select({
+      country: clicks.countryCode,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(clicks)
+    .where(and(eq(clicks.linkId, linkId), gte(clicks.clickedAt, sinceIso)))
+    .groupBy(clicks.countryCode)
+    .orderBy(sql`COUNT(*) DESC`)
+    .all() as { country: string | null; count: number }[];
+
+  return rows.map((r) => ({ country: r.country, count: r.count }));
+}

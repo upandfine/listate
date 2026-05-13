@@ -102,8 +102,28 @@ describe('GET /api/export', () => {
     expect(body.links[0].id).toBe('mine');
     expect(body.links[0].tags).toEqual(['a', 'b']);
     expect(body.links[0].clicks).toEqual([
-      '2026-05-08 10:00:00',
-      '2026-05-08 11:00:00',
+      { clickedAt: '2026-05-08 10:00:00', country: null },
+      { clickedAt: '2026-05-08 11:00:00', country: null },
+    ]);
+  });
+
+  it('liefert pro Klick den Country-Code (DSGVO Art. 20)', async () => {
+    const me = seedUser(h.sqlite, { id: 'me2', email: 'me@test' });
+    const linkId = seedLink(h.sqlite, { id: 'geo', userId: me });
+    seedClicks(h.sqlite, linkId, [
+      ['2026-05-08 09:00:00', 'DE'],
+      ['2026-05-08 10:00:00', 'CH'],
+      ['2026-05-08 11:00:00', null], // Loopback / unbekannt
+    ]);
+
+    mocks.session = { user: { id: me, email: 'me@test', role: 'user' } };
+
+    const body = await (await GET()).json();
+
+    expect(body.links[0].clicks).toEqual([
+      { clickedAt: '2026-05-08 09:00:00', country: 'DE' },
+      { clickedAt: '2026-05-08 10:00:00', country: 'CH' },
+      { clickedAt: '2026-05-08 11:00:00', country: null },
     ]);
   });
 });
