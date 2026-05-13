@@ -288,8 +288,13 @@ Wartbarkeit langfristig sauber bleibt.
   **Erledigt:** Alle vier Flags aktiv, keine neuen Errors aufgetreten —
   ESLint (`@typescript-eslint/no-unused-vars` mit `^_`-Pattern) und
   saubere Codebase machen die Erweiterung schmerzfrei.
-- **Offen:** `any`/`unknown`-Casts auditieren, Drizzle-Query-Returns
-  in Domain-Types extrahieren (`db/types.ts`).
+- ~~`any`/`unknown`-Casts auditieren~~: systematisch durchgegangen.
+  **Production-Code hat NULL `any`-Casts.** `unknown`-Vorkommen alle
+  legitim (Drizzle-Generic-Parameter, catch-Clause-Standard,
+  JSON-Body-Validation-Eingang vor Zod, `pickImage`-defensive für
+  variable OG-Library-Shapes). Keine Aktionen erforderlich.
+- **Offen:** Drizzle-Query-Returns in Domain-Types extrahieren
+  (`db/types.ts`) — eher kosmetisch, kein konkreter Bug.
 
 **~~4. Server-Actions vereinheitlichen~~** — umgesetzt
 - ~~Einheitliches ActionResult-Pattern~~:
@@ -338,9 +343,14 @@ Wartbarkeit langfristig sauber bleibt.
 - ~~Bundle-Analyse (`@next/bundle-analyzer`)~~: integriert in
   [`next.config.mjs`](next.config.mjs), `npm run analyze` erzeugt
   `.next/analyze/*.html`.
+- ~~Schwere Client-Bundles lazy laden~~: `qrcode` (~75 KB) in
+  [`QrButton.tsx`](app/components/QrButton.tsx) wird jetzt erst beim
+  ersten Klick auf den QR-Button via `await import('qrcode')` geladen.
+  Vorher war es im initialen Bundle jeder Seite mit `QrButton` (Dashboard,
+  Create-Card, Detail-Seite). Heatmap + Sparkline sind Server-Components
+  (SSR) → kein Client-Bundle-Impact, kein Lazy-Loading sinnvoll.
 - **Offen:** OG-Bilder im Dashboard via `<Image>` mit Proxy-Loader
-  (Privacy: Owner sieht fremde Hosts nicht direkt). `Heatmap`/Charts
-  via `dynamic()` lazy laden.
+  (Privacy: Owner sieht fremde Hosts nicht direkt).
 
 **8. Security-Härtung** — überwiegend umgesetzt
 - ~~**CSP-Header**~~ aktiv in [`next.config.mjs`](next.config.mjs):

@@ -1,6 +1,5 @@
 'use client';
 
-import QRCode from 'qrcode';
 import { useEffect, useRef, useState } from 'react';
 
 /**
@@ -21,6 +20,11 @@ export function QrButton({
 
   async function open() {
     if (!svg) {
+      // qrcode-Lib (~75 KB) wird erst beim ersten Klick geladen, nicht
+      // beim Mount der Komponente. Spart das aus dem initialen Bundle
+      // jeder Dashboard-/Detail-Seite. Dynamic-Import wird vom Browser
+      // gecached → ab dem zweiten Klick ist es synchron.
+      const QRCode = (await import('qrcode')).default;
       // SVG ohne explizite width/height generieren – wir lassen das SVG
       // den Container füllen (siehe wrapping div). Der Renderer setzt
       // sonst feste Pixelmaße, die aus dem Modal herausragen.
