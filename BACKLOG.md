@@ -288,10 +288,24 @@ Wartbarkeit langfristig sauber bleibt.
   - Account löschen
 - CI-Hook (GitHub Actions) der Tests bei jedem Push laufen lässt.
 
-**2. Strukturiertes Logging**
-- `pino` oder `winston` statt `console.error`. Je Request eine Trace-ID.
-- Alle Server-Action-Errors mit `logger.error({ user, action, err })`.
-- Sliplane/Caddy bekommt strukturierte JSON-Logs, ist später durchsuchbar.
+**~~2. Strukturiertes Logging~~** — umgesetzt
+- ~~`pino` statt `console.error`~~: [`lib/logger.ts`](lib/logger.ts) exportiert
+  eine pino-Instanz (JSON-Output in Prod/Dev, `enabled: false` in
+  NODE_ENV=test damit Vitest stumm bleibt). `redact` zensiert
+  `password|token|authorization|cookie` defensiv.
+- ~~Server-Action-Errors strukturiert~~: `toActionFail` und
+  `executeOrRedirect` in [`lib/actionResult.ts`](lib/actionResult.ts) loggen
+  jetzt `{ action, err: { name, message, stack } }` statt frei-formatiertem
+  `console.error`. Selbiges in [`lib/auditLog.ts`](lib/auditLog.ts) und
+  [`lib/adultFilter.ts`](lib/adultFilter.ts).
+- ~~Trace-ID je Request~~: `newTraceId()` erzeugt eine 8-Zeichen-Korrelations-ID;
+  [`app/api/create/route.ts`](app/api/create/route.ts) reicht sie im Error-Log
+  durch (`{ route, traceId, userId, err }`). Bei kuenftigen Route-Handlern
+  als Pattern uebernehmen.
+- ~~JSON-Logs fuer Sliplane~~: pino schreibt ohne pino-pretty, also
+  zeilenweise JSON auf stdout — direkt von Sliplane/Caddy parsbar.
+- **Bewusst nicht ersetzt:** `app/error.tsx` (Client-Component, dort gehoert
+  Browser-`console.error` hin — pino waere Bundle-Bloat ohne Mehrwert).
 
 **3. TypeScript-Hygiene** — teilweise umgesetzt
 - ~~`tsconfig.json` um `noUnusedLocals`, `noUnusedParameters`,
@@ -304,8 +318,13 @@ Wartbarkeit langfristig sauber bleibt.
   legitim (Drizzle-Generic-Parameter, catch-Clause-Standard,
   JSON-Body-Validation-Eingang vor Zod, `pickImage`-defensive für
   variable OG-Library-Shapes). Keine Aktionen erforderlich.
-- **Offen:** Drizzle-Query-Returns in Domain-Types extrahieren
-  (`db/types.ts`) — eher kosmetisch, kein konkreter Bug.
+- ~~Drizzle-Query-Returns in Domain-Types extrahieren (`db/types.ts`)~~:
+  umgesetzt. [`db/types.ts`](db/types.ts) exportiert `linkListProjection`
+  (Drizzle-Select-Objekt fuer Link-Detail- und Dashboard-Spalten plus
+  `ownerEmail`-Join) sowie die abgeleiteten Typen `LinkListRow` /
+  `LinkListRowWithOwnerName`. [`app/dashboard/page.tsx`](app/dashboard/page.tsx)
+  und [`app/links/[id]/page.tsx`](app/links/[id]/page.tsx) referenzieren
+  jetzt die zentrale Projektion statt 17 Felder zweimal inline zu listen.
 
 **~~4. Server-Actions vereinheitlichen~~** — umgesetzt
 - ~~Einheitliches ActionResult-Pattern~~:

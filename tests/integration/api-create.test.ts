@@ -50,6 +50,7 @@ vi.mock('@/lib/adultFilter', () => ({
 
 // Erst nach allen vi.mock-Aufrufen importieren.
 import { POST } from '@/app/api/create/route';
+import { logger } from '@/lib/logger';
 
 let h: TestDbHandle;
 let userId: string;
@@ -220,9 +221,9 @@ describe('POST /api/create — Fehler-Status durchreichen', () => {
     };
     mocks.session = { user: { id: userId, role: 'user' } };
 
-    // console.error stummschalten, damit der erwartete Log nicht den Test-
-    // Output zumuellt.
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // logger.error stummschalten — pino ist in NODE_ENV=test bereits
+    // disabled, der Spy soll nur den Call assertieren.
+    const errSpy = vi.spyOn(logger, 'error').mockImplementation((() => {}) as never);
 
     const res = await POST(makeRequest({ url: 'https://example.test' }));
 

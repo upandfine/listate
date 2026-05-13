@@ -12,6 +12,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { logger } from './logger';
 
 const LIST_PATH = path.join(
   process.cwd(),
@@ -39,7 +40,10 @@ function load(): Set<string> {
       }
     }
   } catch (err) {
-    console.error('[adultFilter] Konnte Hostliste nicht laden:', err);
+    logger.error(
+      { module: 'adultFilter', path: LIST_PATH, err },
+      'Konnte Adult-Hostliste nicht laden'
+    );
   }
   _hosts = set;
   return set;

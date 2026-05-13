@@ -17,6 +17,7 @@
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { TrackingLinkError } from './createTrackingLink';
+import { logger } from './logger';
 
 export type ActionResult<T = void> =
   | (T extends void ? { ok: true } : { ok: true; data: T })
@@ -60,10 +61,13 @@ export function toActionFail(
   if (err instanceof PermissionError) return actionFail(err.message);
   if (err instanceof ValidationError) return actionFail(err.message);
   if (err instanceof Error) {
-    console.error(`[${context}] unexpected error:`, err);
+    logger.error(
+      { action: context, err: { name: err.name, message: err.message, stack: err.stack } },
+      'Server-Action: unbekannter Fehler'
+    );
     return actionFail('Unbekannter Fehler.');
   }
-  console.error(`[${context}] unexpected non-Error throw:`, err);
+  logger.error({ action: context, err }, 'Server-Action: non-Error throw');
   return actionFail('Unbekannter Fehler.');
 }
 
@@ -142,7 +146,7 @@ export function parseFormData<T extends z.ZodTypeAny>(
  * Form-Action-Bridge: nimmt ein ActionResult und reagiert passend, sodass
  * der Aufrufer keine Logik mehr selbst hat:
  *   - bei redirect-Result: next/navigation.redirect() (wirft NEXT_REDIRECT)
- *   - bei Fehler: console.error mit dem Context
+ *   - bei Fehler: strukturiertes logger.error mit dem Context
  *   - bei ok ohne redirect: stillschweigend ignorieren
  *
  * Wird von app/actions/*-Modulen verwendet, um die *FormAction-Wrappers
@@ -156,6 +160,6 @@ export function executeOrRedirect(
     redirect(result.redirect);
   }
   if (!result.ok) {
-    console.error(`[${context}]`, result.error);
+    logger.error({ action: context, error: result.error }, 'FormAction: Result.error');
   }
 }

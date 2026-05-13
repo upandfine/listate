@@ -6,10 +6,12 @@ import {
 } from '@/lib/createTrackingLink';
 import { getBaseUrl } from '@/lib/baseUrl';
 import { ttlToExpiresAt } from '@/lib/ttl';
+import { logger, newTraceId } from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
+  const traceId = newTraceId();
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json(
@@ -65,7 +67,18 @@ export async function POST(req: NextRequest) {
     if (err instanceof TrackingLinkError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    console.error('[api/create] unexpected error:', err);
+    logger.error(
+      {
+        route: 'api/create',
+        traceId,
+        userId: session.user.id,
+        err:
+          err instanceof Error
+            ? { name: err.name, message: err.message, stack: err.stack }
+            : err,
+      },
+      'POST /api/create: unbekannter Fehler'
+    );
     return NextResponse.json(
       { error: 'Unbekannter Fehler' },
       { status: 500 }

@@ -14,6 +14,7 @@
  */
 import { getDb } from '@/db';
 import { auditLog } from '@/db/schema';
+import { logger } from './logger';
 
 export type AuditAction =
   | 'link.deleted'
@@ -36,7 +37,7 @@ export interface AuditEvent {
 }
 
 /**
- * Logged ein Audit-Event. Defensiv: bei DB-Fehler wird nur console.error
+ * Logged ein Audit-Event. Defensiv: bei DB-Fehler wird nur strukturiert
  * geloggt, der Aufrufer wird nicht gestoert.
  */
 export function logAuditEvent(event: AuditEvent): void {
@@ -51,6 +52,9 @@ export function logAuditEvent(event: AuditEvent): void {
       })
       .run();
   } catch (err) {
-    console.error('[auditLog] Insert failed:', err);
+    logger.error(
+      { module: 'auditLog', auditAction: event.action, err },
+      'Audit-Log-Insert fehlgeschlagen'
+    );
   }
 }

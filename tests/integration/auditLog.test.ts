@@ -67,6 +67,7 @@ import {
   deleteTemplate,
 } from '@/app/actions/templates';
 import { logAuditEvent } from '@/lib/auditLog';
+import { logger } from '@/lib/logger';
 import { _resetRateLimitForTests } from '@/lib/rateLimit';
 
 let h: TestDbHandle;
@@ -147,14 +148,18 @@ describe('logAuditEvent', () => {
         throw new Error('db gone');
       },
     };
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errSpy = vi.spyOn(logger, 'error').mockImplementation((() => {}) as never);
 
     expect(() =>
       logAuditEvent({ userId: 'u1', action: 'link.deleted' })
     ).not.toThrow();
     expect(errSpy).toHaveBeenCalledWith(
-      '[auditLog] Insert failed:',
-      expect.any(Error)
+      expect.objectContaining({
+        module: 'auditLog',
+        auditAction: 'link.deleted',
+        err: expect.any(Error),
+      }),
+      expect.stringContaining('Audit-Log-Insert')
     );
   });
 });

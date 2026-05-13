@@ -11,6 +11,7 @@ import { ShareButton } from '@/app/components/ShareButton';
 import { Sparkline } from '@/app/components/Sparkline';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
+import { linkListProjection } from '@/db/types';
 import { getBaseUrl } from '@/lib/baseUrl';
 import {
   getCountryBreakdown,
@@ -43,26 +44,7 @@ export default async function LinkDetailPage({
   const db = getDb();
 
   const row = db
-    .select({
-      id: links.id,
-      slug: links.slug,
-      originalUrl: links.originalUrl,
-      ogTitle: links.ogTitle,
-      ogDescription: links.ogDescription,
-      ogImage: links.ogImage,
-      ogSiteName: links.ogSiteName,
-      customTitle: links.customTitle,
-      customDescription: links.customDescription,
-      customSiteName: links.customSiteName,
-      customImagePath: links.customImagePath,
-      imageHidden: links.imageHidden,
-      clickCount: links.clickCount,
-      createdAt: links.createdAt,
-      expiresAt: links.expiresAt,
-      tags: links.tags,
-      userId: links.userId,
-      ownerEmail: users.email,
-    })
+    .select(linkListProjection)
     .from(links)
     .leftJoin(users, eq(users.id, links.userId))
     .where(eq(links.id, id))

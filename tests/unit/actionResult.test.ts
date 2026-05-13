@@ -25,6 +25,7 @@ import {
   toActionFail,
   ValidationError,
 } from '@/lib/actionResult';
+import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 afterEach(() => {
@@ -73,23 +74,29 @@ describe('toActionFail', () => {
     expect(res).toEqual({ ok: false, error: 'Pattern fehlt.' });
   });
 
-  it('verpackt unbekannten Error in generischer Message + console.error', () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('verpackt unbekannten Error in generischer Message + logger.error', () => {
+    const errSpy = vi.spyOn(logger, 'error').mockImplementation((() => {}) as never);
     const res = toActionFail(new Error('internal db crash'), 'updateLink');
     expect(res).toEqual({ ok: false, error: 'Unbekannter Fehler.' });
     expect(errSpy).toHaveBeenCalledWith(
-      '[updateLink] unexpected error:',
-      expect.any(Error)
+      expect.objectContaining({
+        action: 'updateLink',
+        err: expect.objectContaining({ message: 'internal db crash' }),
+      }),
+      expect.stringContaining('unbekannter Fehler')
     );
   });
 
-  it('verpackt non-Error-Throws in generischer Message + console.error', () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('verpackt non-Error-Throws in generischer Message + logger.error', () => {
+    const errSpy = vi.spyOn(logger, 'error').mockImplementation((() => {}) as never);
     const res = toActionFail('plain string thrown', 'updateLink');
     expect(res).toEqual({ ok: false, error: 'Unbekannter Fehler.' });
     expect(errSpy).toHaveBeenCalledWith(
-      '[updateLink] unexpected non-Error throw:',
-      'plain string thrown'
+      expect.objectContaining({
+        action: 'updateLink',
+        err: 'plain string thrown',
+      }),
+      expect.stringContaining('non-Error throw')
     );
   });
 });
@@ -138,13 +145,13 @@ describe('parseFormData', () => {
 
 describe('executeOrRedirect', () => {
   it('ok-no-redirect: still kein Side-Effect', () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errSpy = vi.spyOn(logger, 'error').mockImplementation((() => {}) as never);
     executeOrRedirect({ ok: true }, 'test');
     expect(errSpy).not.toHaveBeenCalled();
   });
 
   it('ok-with-data: still kein Side-Effect', () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errSpy = vi.spyOn(logger, 'error').mockImplementation((() => {}) as never);
     // ActionResult<T> erzwingt fuer { ok: true, data } ein generisches
     // T — wir casten hier explizit auf die Union-Variante.
     executeOrRedirect(
@@ -163,7 +170,7 @@ describe('executeOrRedirect', () => {
   });
 
   it('error: logged mit context, kein throw', () => {
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errSpy = vi.spyOn(logger, 'error').mockImplementation((() => {}) as never);
     expect(() =>
       executeOrRedirect(
         { ok: false, error: 'Speichern fehlgeschlagen.' },
@@ -171,8 +178,11 @@ describe('executeOrRedirect', () => {
       )
     ).not.toThrow();
     expect(errSpy).toHaveBeenCalledWith(
-      '[updateLink]',
-      'Speichern fehlgeschlagen.'
+      expect.objectContaining({
+        action: 'updateLink',
+        error: 'Speichern fehlgeschlagen.',
+      }),
+      expect.any(String)
     );
   });
 });
