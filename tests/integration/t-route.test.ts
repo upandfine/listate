@@ -16,6 +16,14 @@ import {
 const mocks = vi.hoisted(() => ({
   currentDb: null as null | unknown,
   geoLookup: vi.fn<(ip: string) => { country: string } | null>(),
+  dispatchClickWebhook: vi.fn<
+    (input: {
+      userId: string;
+      countryCode: string | null;
+      userAgent: string | null;
+      link: { id: string };
+    }) => Promise<void>
+  >(),
 }));
 
 vi.mock('@/db', () => ({
@@ -30,6 +38,10 @@ vi.mock('geoip-lite', () => ({
   default: { lookup: mocks.geoLookup },
 }));
 
+vi.mock('@/lib/webhook', () => ({
+  dispatchClickWebhook: mocks.dispatchClickWebhook,
+}));
+
 import { GET } from '@/app/t/[id]/route';
 
 let h: TestDbHandle;
@@ -39,6 +51,8 @@ beforeEach(() => {
   h = createTestDb();
   mocks.currentDb = h.db;
   mocks.geoLookup.mockReset();
+  mocks.dispatchClickWebhook.mockReset();
+  mocks.dispatchClickWebhook.mockResolvedValue(undefined);
   userId = seedUser(h.sqlite);
 });
 
@@ -348,6 +362,56 @@ describe('GET /t/[id] — Bestandsverhalten unveraendert', () => {
       .prepare(`SELECT COUNT(*) as n FROM clicks WHERE link_id = ?`)
       .get('crwl') as { n: number };
     expect(cnt.n).toBe(0);
+  });
+
+  it('Non-Crawler-Klick triggert dispatchClickWebhook mit link, country, userAgent', async () => {
+    seedLink(h.sqlite, { id: 'wh', userId, originalUrl: 'https://example.test/x' });
+    mocks.geoLookup.mockReturnValue({ country: 'CH' });
+
+    await GET(
+      new NextRequest('https://listate.test/t/wh', {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/120',
+          'x-forwarded-for': '203.0.113.7',
+        },
+      }),
+      { params: Promise.resolve({ id: 'wh' }) }
+    );
+
+    expect(mocks.dispatchClickWebhook).toHaveBeenCalledTimes(1);
+    const arg = mocks.dispatchClickWebhook.mock.calls[0][0];
+    expect(arg.userId).toBe(userId);
+    expect(arg.countryCode).toBe('CH');
+    expect(arg.userAgent).toContain('Mozilla');
+    expect(arg.link.id).toBe('wh');
+  });
+
+  it('Crawler-Request triggert KEINEN Webhook', async () => {
+    seedLink(h.sqlite, { id: 'whc', userId, originalUrl: 'https://example.test' });
+
+    await call('whc');
+
+    expect(mocks.dispatchClickWebhook).not.toHaveBeenCalled();
+  });
+
+  it('Webhook-Dispatch-Fehler blockiert Redirect-Response nicht', async () => {
+    seedLink(h.sqlite, { id: 'whf', userId, originalUrl: 'https://example.test' });
+    mocks.dispatchClickWebhook.mockRejectedValueOnce(new Error('boom'));
+
+    const res = await GET(
+      new NextRequest('https://listate.test/t/whf', {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/120',
+        },
+      }),
+      { params: Promise.resolve({ id: 'whf' }) }
+    );
+
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('og:type');
   });
 
   it('410 mit Hinweis-HTML bei abgelaufenem Link', async () => {

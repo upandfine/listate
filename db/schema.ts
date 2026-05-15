@@ -18,6 +18,12 @@ export const users = sqliteTable('user', {
   role: text('role', { enum: ['user', 'admin'] })
     .notNull()
     .default('user'),
+  /** Optionaler Webhook (Feature A): wird bei jedem Non-Crawler-Klick
+   *  per POST aufgerufen. NULL = Webhook deaktiviert. */
+  webhookUrl: text('webhook_url'),
+  /** HMAC-Secret fuer X-Listate-Signature. Wird beim ersten Setzen der
+   *  URL automatisch generiert; User kann es regenerieren. */
+  webhookSecret: text('webhook_secret'),
 });
 
 export const accounts = sqliteTable(

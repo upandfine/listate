@@ -110,3 +110,18 @@ export const blockHostSchema = z.object({
 export const unblockHostSchema = z.object({
   host: z.string().default('').refine((v) => v.length >= 1, 'Host fehlt.'),
 });
+
+// ---------------------------------------------------------------------------
+// Webhook (Feature A) — pro User optionaler Klick-Webhook.
+// ---------------------------------------------------------------------------
+
+export const updateWebhookSchema = z.object({
+  url: z
+    .string()
+    .default('')
+    .refine((v) => v.length <= 500, 'URL zu lang (max 500).')
+    .refine(
+      (v) => /^https:\/\/[^\s]+$/i.test(v),
+      'URL muss mit https:// beginnen.'
+    ),
+});

@@ -5,7 +5,9 @@ import { clicks, links, type Link } from '@/db/schema';
 import { getBaseUrl } from '@/lib/baseUrl';
 import { getDisplayOg } from '@/lib/displayOg';
 import { extractClientIp, lookupCountry } from '@/lib/geo';
+import { logger } from '@/lib/logger';
 import { isExpired } from '@/lib/ttl';
+import { dispatchClickWebhook } from '@/lib/webhook';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -145,6 +147,25 @@ export async function GET(
       .run();
     // Einzelner Klick mit Timestamp + Country (für Sparkline / Verlauf / Geo)
     db.insert(clicks).values({ linkId: link.id, countryCode }).run();
+
+    // Webhook (Feature A): fire-and-forget. Wir warten BEWUSST nicht,
+    // damit ein langsamer Empfaenger den Redirect nicht ausbremst.
+    // `dispatchClickWebhook` fangt eigene Fehler intern (struct. log);
+    // der .catch() hier ist nur fuer den seltenen Fall eines
+    // synchron-throwenden Programmierfehlers.
+    void dispatchClickWebhook({
+      db,
+      userId: link.userId,
+      link,
+      clickedAt: new Date(),
+      countryCode,
+      userAgent,
+    }).catch((err) => {
+      logger.error(
+        { module: 'tRoute', linkId: link.id, err },
+        'Webhook-Dispatch sync-throw'
+      );
+    });
   }
 
   const baseUrl = await getBaseUrl();

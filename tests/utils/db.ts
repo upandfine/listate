@@ -35,12 +35,14 @@ function bootstrapTestSchema(sqlite: Database.Database) {
   sqlite.pragma('foreign_keys = ON');
   sqlite.exec(`
     CREATE TABLE user (
-      id            TEXT PRIMARY KEY,
-      name          TEXT,
-      email         TEXT UNIQUE,
-      emailVerified INTEGER,
-      image         TEXT,
-      role          TEXT NOT NULL DEFAULT 'user'
+      id             TEXT PRIMARY KEY,
+      name           TEXT,
+      email          TEXT UNIQUE,
+      emailVerified  INTEGER,
+      image          TEXT,
+      role           TEXT NOT NULL DEFAULT 'user',
+      webhook_url    TEXT,
+      webhook_secret TEXT
     );
 
     CREATE TABLE links (
@@ -127,6 +129,8 @@ export interface SeedUserInput {
   email?: string;
   name?: string;
   role?: 'user' | 'admin';
+  webhookUrl?: string | null;
+  webhookSecret?: string | null;
 }
 
 export function seedUser(
@@ -136,13 +140,16 @@ export function seedUser(
   const id = input.id ?? `user_${Math.random().toString(36).slice(2, 10)}`;
   sqlite
     .prepare(
-      `INSERT INTO user (id, email, name, role) VALUES (?, ?, ?, ?)`
+      `INSERT INTO user (id, email, name, role, webhook_url, webhook_secret)
+       VALUES (?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
       input.email ?? `${id}@example.test`,
       input.name ?? 'Test User',
-      input.role ?? 'user'
+      input.role ?? 'user',
+      input.webhookUrl ?? null,
+      input.webhookSecret ?? null
     );
   return id;
 }

@@ -24,7 +24,10 @@ export type AuditAction =
   | 'template.created'
   | 'template.deleted'
   | 'template.applied'
-  | 'account.deleted';
+  | 'account.deleted'
+  | 'webhook.configured'
+  | 'webhook.cleared'
+  | 'webhook.secret_rotated';
 
 export interface AuditEvent {
   /** Who triggered it. Null fuer System-Actions. */

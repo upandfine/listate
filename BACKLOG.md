@@ -7,25 +7,70 @@ jeweils nochmal abgestimmt.
 
 ## Vorgemerkt für später
 
-### A. Webhook bei jedem Klick
+### A. Webhook bei jedem Klick ✅ umgesetzt
 
-**Ziel:** Externe Systeme (Slack, n8n, eigene Endpoints) bei jedem
-Tracking-Link-Klick informieren.
+**Stand:** Pro User kann in den Settings ein HTTPS-Webhook hinterlegt
+werden. `/t/[id]` POSTet bei jedem **Non-Crawler-Klick** asynchron
+(fire-and-forget) einen JSON-Payload an die URL — der Redirect wird
+nie blockiert. Signatur per HMAC-SHA256 im Header
+`X-Listate-Signature: sha256=<HEX>`. Secret wird beim ersten Speichern
+automatisch generiert und kann ueber „Secret neu erzeugen" rotiert
+werden.
 
-**Skizze:**
-- Pro User optional eine Webhook-URL in den Settings hinterlegbar.
-- `/t/[id]` POSTet asynchron (fire-and-forget) ein JSON-Payload
-  `{ linkId, slug, originalUrl, clickedAt, userAgent? }` an die URL.
-- Optional: Signatur via `X-Listate-Signature` (HMAC-SHA256 mit
-  Webhook-Secret pro User), damit Empfänger validieren können.
-- Retries: 1× Wiederholung bei 5xx; sonst silent fail (kein User-Feedback).
-- Rate-Limit: max 1 Webhook-Call pro Klick, kein Buffering nötig
-  bei dem erwarteten Volumen.
+**Payload:**
+```json
+{
+  "linkId": "abc123",
+  "slug": "mein-slug",
+  "originalUrl": "https://example.com/page",
+  "clickedAt": "2026-05-13T12:00:00.000Z",
+  "country": "DE",
+  "userAgent": "Mozilla/5.0 ..."
+}
+```
 
-**Offene Fragen:**
-- Für welche Klicks? Nur Nicht-Crawler (= konsistent zu click_count)
-  oder alle? Vermutlich erstere.
-- Per-Link-Webhook oder pro User-Account? Pro User reicht für jetzt.
+**Implementierung:**
+- Schema: `user.webhook_url`, `user.webhook_secret` (idempotenter
+  Bootstrap via `ensureColumn`, synchron in `db/schema.ts`,
+  `db/index.ts::bootstrap()`, `tests/utils/db.ts`).
+- [`lib/webhook.ts`](lib/webhook.ts): `dispatchClickWebhook` mit
+  injizierbarem `HttpClient` und `sleep`. Timeout 5 s pro Versuch
+  (`AbortSignal.timeout`), 1× Retry nach 2 s bei 5xx/Netz/Timeout, kein
+  Retry bei 4xx (Configuration-Error → User soll's fixen, nicht hammern).
+- [`app/t/[id]/route.ts`](app/t/%5Bid%5D/route.ts): `void dispatch...catch()`
+  parallel zu Klick-Counter + Geo-Lookup, NICHT awaited.
+- Server-Actions in [`app/actions/webhook.ts`](app/actions/webhook.ts):
+  `updateWebhook`, `regenerateWebhookSecret`, `clearWebhook`, `testWebhook`
+  (Letzteres sendet einen Sample-Payload und liefert HTTP-Status +
+  Latenz zurueck, damit der User sieht, dass der Empfaenger antwortet).
+- UI: [`app/components/WebhookSettings.tsx`](app/components/WebhookSettings.tsx)
+  als Client-Component im Settings-Bereich. Secret wird verschleiert
+  (•••• + letzte 4 Zeichen) und nur per „Anzeigen"-Klick offengelegt.
+- Audit-Log: `webhook.configured`, `webhook.cleared`,
+  `webhook.secret_rotated` (URL wird **nicht** ins Audit-Log
+  geschrieben — Empfaenger-URL kann Token-Auth tragen).
+
+**Tests:**
+- 13 Integration-Tests in [`tests/integration/webhook.test.ts`](tests/integration/webhook.test.ts)
+  (no-op-Pfade, Payload-Form, HMAC-Signatur reproduzierbar, Retry-
+  Verhalten 5xx/4xx/Netz/Timeout, Sleep-Aufruf).
+- 18 Integration-Tests in [`tests/integration/webhook-actions.test.ts`](tests/integration/webhook-actions.test.ts)
+  (Auth, Validation, DB-Updates, Audit-Log-Inhalt prueft KEINE URL-
+  Leakage).
+- 3 neue Tests in [`tests/integration/t-route.test.ts`](tests/integration/t-route.test.ts):
+  Non-Crawler triggert Dispatch, Crawler nicht, Dispatch-Fehler
+  blockiert HTTP 200 Redirect-Response nicht.
+
+**DSGVO/Privacy:**
+- IP geht NICHT raus (wir haben sie sowieso nicht gespeichert).
+- userAgent geht raw mit — der Empfaenger ist der User selbst.
+- URL des Empfaengers wird im Audit-Log nicht persistiert (koennte
+  Token enthalten).
+
+**Single-Instance-Schwachstelle:** Kein Retry-Queue, kein Buffering. Bei
+Sliplane-Restart geht ein laufender fire-and-forget-Call verloren. Bei
+erwartetem Klick-Volumen akzeptabel; bei Multi-Instance-Deploy
+muesste eine Redis-Queue dazu.
 
 ### B. Geo-Tracking (datenschutzfreundlich) ✅ umgesetzt
 

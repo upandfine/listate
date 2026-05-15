@@ -28,12 +28,14 @@ function bootstrap(sqlite: Database.Database) {
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS user (
-      id            TEXT PRIMARY KEY,
-      name          TEXT,
-      email         TEXT UNIQUE,
-      emailVerified INTEGER,
-      image         TEXT,
-      role          TEXT NOT NULL DEFAULT 'user'
+      id             TEXT PRIMARY KEY,
+      name           TEXT,
+      email          TEXT UNIQUE,
+      emailVerified  INTEGER,
+      image          TEXT,
+      role           TEXT NOT NULL DEFAULT 'user',
+      webhook_url    TEXT,
+      webhook_secret TEXT
     );
 
     CREATE TABLE IF NOT EXISTS account (
@@ -133,6 +135,10 @@ function bootstrap(sqlite: Database.Database) {
   ensureColumn(sqlite, 'links', 'image_hidden', 'INTEGER NOT NULL DEFAULT 0');
   // Geo-Tracking (Feature B): nur Country-Code, nie IP.
   ensureColumn(sqlite, 'clicks', 'country_code', 'TEXT');
+  // Webhook bei Klick (Feature A): pro User optionaler POST-Endpoint
+  // mit HMAC-Signatur.
+  ensureColumn(sqlite, 'user', 'webhook_url', 'TEXT');
+  ensureColumn(sqlite, 'user', 'webhook_secret', 'TEXT');
 
   // Falls die Tabellen oder Indexe noch fehlen (alte DBs):
   sqlite.exec(`

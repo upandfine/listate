@@ -4,8 +4,9 @@ import { count, eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { deleteAccountFormAction } from '@/app/actions/account';
 import { ConfirmButton } from '@/app/components/ConfirmButton';
+import { WebhookSettings } from '@/app/components/WebhookSettings';
 import { getDb } from '@/db';
-import { links } from '@/db/schema';
+import { links, users } from '@/db/schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,14 @@ export default async function SettingsPage() {
       .from(links)
       .where(eq(links.userId, session.user.id))
       .get()?.n ?? 0;
+  const webhook = db
+    .select({
+      url: users.webhookUrl,
+      secret: users.webhookSecret,
+    })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .get();
 
   return (
     <div className="space-y-8">
@@ -49,6 +58,11 @@ export default async function SettingsPage() {
           <dd className="text-neutral-900">{linkCount}</dd>
         </dl>
       </section>
+
+      <WebhookSettings
+        initialUrl={webhook?.url ?? ''}
+        initialSecret={webhook?.secret ?? null}
+      />
 
       <section className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold">Datenexport</h2>
