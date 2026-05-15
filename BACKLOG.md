@@ -565,6 +565,41 @@ programmatischen Focus-Target.
 
 ---
 
+### J. Mobile-Check der Item-Toolbar
+
+**Problem (User-Beobachtung, 2026-05-15):** Auf Mobile-Viewports
+brechen die Buttons in der Dashboard-Item-Toolbar visuell aus —
+„Bearbeiten" / „Vorschau" / „Löschen" landen nebeneinander mit
+Copy / Share / QR plus dem Klick-Counter, und auf engen Screens
+sprengt das die Card-Breite oder erzeugt zerrissene Wrap-Pattern.
+
+**Vermutete Stellen:**
+- [`app/dashboard/page.tsx`](app/dashboard/page.tsx) Z. ~500ff.
+  (Item-Toolbar mit `flex flex-wrap items-center gap-1.5` rechts
+  vom Sparkline-Block).
+- [`app/links/[id]/page.tsx`](app/links/[id]/page.tsx) Z. 144
+  (Tracking-Link-Header mit Copy/Share/QR/Vorschau-Buttons).
+
+**Was zu tun ist:**
+1. Mobile-Viewports systematisch durchklicken (320 px Min-Width,
+   375 px iPhone-SE, 414 px iPhone-Pro). Welche Buttons brechen
+   wirklich aus, welche wrap'en nur ungelenk?
+2. Optionen:
+   - Toolbar auf Mobile als zwei Reihen: `flex-col sm:flex-row`
+     (Action-Buttons rechts oben, Copy/Share/QR in eigener Reihe).
+   - Sekundär-Aktionen (Bearbeiten/Vorschau/Löschen) in ein
+     Drei-Punkte-Menü auf Mobile, ausgefahren ab `sm:`.
+   - Klick-Counter + Sparkline kompakter auf Mobile (z. B. nur
+     Counter, Sparkline ab `sm:` sichtbar).
+3. E2E-Test mit Playwright auf 375-px-Viewport, der gegen
+   horizontales Scrollen prüft.
+
+**Aufwand:** ~1 h Layout-Fix + 30 min E2E-Smoke. Backlog Feature D5
+(Komponenten-DRY mit `<Button>`-Primitive + Toolbar-Component) wäre
+der saubere Ort, das gleich richtig zu machen.
+
+---
+
 ### G. Detail-Beobachtungen aus der OG-Override-Session
 
 Kleine Punkte, die beim Bauen aufgefallen sind und keinen
