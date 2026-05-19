@@ -14,20 +14,8 @@ import {
   updateLinkOverrides,
   uploadLinkImage,
 } from '@/app/actions/og-overrides';
+import type { LinkPreviewInput } from '@/types/link';
 import { Button } from './ui/Button';
-
-interface LinkPreviewInput {
-  id: string;
-  ogTitle: string | null;
-  ogDescription: string | null;
-  ogImage: string | null;
-  ogSiteName: string | null;
-  customTitle: string | null;
-  customDescription: string | null;
-  customSiteName: string | null;
-  customImagePath: string | null;
-  imageHidden: number;
-}
 
 type FormatKey = 'original' | 'og' | 'square';
 
