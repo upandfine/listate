@@ -94,7 +94,7 @@ export default async function LinkDetailPage({
         >
           ← zurück zum Dashboard
         </Link>
-        <h1 className="text-2xl font-semibold text-neutral-900">
+        <h1 className="break-words text-2xl font-semibold text-neutral-900">
           {getDisplayOg(row).title ?? row.originalUrl}
         </h1>
         <p className="break-all text-xs text-neutral-500">

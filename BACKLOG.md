@@ -638,10 +638,21 @@ Viewport explizit emuliert statt `devices['iPhone SE']`-Spread, weil
 letzterer `defaultBrowserType: 'webkit'` mitzieht — wir laufen aber im
 chromium-Projekt (`isMobile`/`hasTouch` sind Chromium-Features).
 
-**Offen (niedrige Prio):** Manueller Cross-Browser-Check (iPhone 12,
-Pixel 5, Galaxy Fold 280 px) — siehe notes/feature-J. Bei späterem
-D5-Refactor wandert die Toolbar in eine `<ItemToolbar>`-Komponente;
-die Mobile-Tweaks sind dann Teil davon.
+**Etappe 5 (manueller Viewport-Check, 2026-05-19):** Via
+DevTools-Emulation auf 280/375/390 px durchgeklickt. Dabei ein
+**zusätzlicher Overflow-Bug** gefunden und behoben, der nicht die
+Toolbar betraf: Bei Links **ohne** OG-Titel fällt die Anzeige auf
+die Original-URL zurück; lange URLs sind unumbrechbare Token und
+sprengten so den Dashboard-`<span>` (Z. 368) und den Detail-`<h1>`
+(Z. 97) → horizontaler Scroll. Fix: `min-w-0 break-words` bzw.
+`break-words`. Der E2E-Test legt jetzt bewusst eine lange URL ohne
+Titel an, deckt diese Regression also mit ab. 280/375/390 px nach
+dem Fix komplett scrollfrei (Dashboard + Detail).
+
+**Offen (niedrige Prio):** Bei späterem D5-Refactor wandert die
+Toolbar in eine `<ItemToolbar>`-Komponente; die Mobile-Tweaks sind
+dann Teil davon. Galaxy-Fold 280 px ist abgedeckt; reale Geräte-
+Tests (echtes iOS Safari) bleiben optional.
 
 ---
 

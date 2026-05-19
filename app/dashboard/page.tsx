@@ -365,7 +365,7 @@ export default async function DashboardPage({
                     {/* Headline + Original-URL */}
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-neutral-900">
+                        <span className="min-w-0 break-words font-medium text-neutral-900">
                           {getDisplayOg(link).title ?? link.originalUrl}
                         </span>
                         {link.slug && (

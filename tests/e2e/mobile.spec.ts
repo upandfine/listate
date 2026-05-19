@@ -30,9 +30,15 @@ async function loginAsDevUser(page: import('@playwright/test').Page) {
   });
 }
 
+// Bewusst lange URL ohne Original-Titel: der Dashboard-/Detail-Titel
+// faellt dann auf diese unumbrechbare URL zurueck — genau der Fall,
+// der vor Feature J horizontalen Scroll erzeugte.
+const LONG_URL =
+  'https://example.com/wirtschaft/verbraucher/eine-sehr-lange-url-die-truncaten-soll-1234567890';
+
 async function createLink(page: import('@playwright/test').Page) {
   await page.goto('/');
-  await page.getByLabel(/Original-URL/i).fill('example.com');
+  await page.getByLabel(/Original-URL/i).fill(LONG_URL);
   await page.getByRole('button', { name: 'Erzeugen' }).click();
   await expect(page.locator('code', { hasText: /\/t\// })).toBeVisible({
     timeout: 15_000,
