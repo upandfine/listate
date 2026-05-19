@@ -4,6 +4,7 @@ import { useRef, useState, type MouseEvent } from 'react';
 import { toast } from 'sonner';
 import { updateLink } from '@/app/actions/links';
 import { TTL_LABELS, TTL_PRESETS, type TtlPreset } from '@/lib/ttl';
+import { Button } from './ui/Button';
 
 interface EditLinkButtonProps {
   linkId: string;
@@ -52,17 +53,12 @@ export function EditLinkButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={open}
-        aria-label="Link bearbeiten"
-        className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-500 transition hover:border-brand hover:bg-brand/5 hover:text-brand"
-      >
+      <Button variant="toolbar" onClick={open} aria-label="Link bearbeiten">
         <span className="flex items-center gap-1">
           <PencilIcon />
           <span className="hidden sm:inline">Bearbeiten</span>
         </span>
-      </button>
+      </Button>
 
       {/* Backdrop-Click: a11y-Lint disable, ESC laeuft via onCancel. */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
@@ -239,19 +235,12 @@ export function EditLinkButton({
           </div>
 
           <footer className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={close}
-              className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-            >
+            <Button variant="ghost" onClick={close}>
               Abbrechen
-            </button>
-            <button
-              type="submit"
-              className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-dark"
-            >
+            </Button>
+            <Button variant="primary" type="submit">
               Speichern
-            </button>
+            </Button>
           </footer>
         </form>
       </dialog>

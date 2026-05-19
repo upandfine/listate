@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Button } from './ui/Button';
 
 interface Channel {
   id: string;
@@ -106,20 +107,17 @@ export function ShareButton({
 
   return (
     <div ref={wrapperRef} className="relative inline-block">
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        className={className}
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={`${label} ${value}`}
-        className={
-          className ??
-          'inline-flex flex-shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50'
-        }
       >
         <ShareIcon />
         <span className="hidden sm:inline">{label}</span>
-      </button>
+      </Button>
 
       {open && (
         <div

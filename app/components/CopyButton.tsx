@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from './ui/Button';
 
 export function CopyButton({
   value,
@@ -24,22 +25,15 @@ export function CopyButton({
   }
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
+      className={className}
       onClick={copy}
       aria-label={copied ? 'Kopiert' : `${label} ${value}`}
-      className={
-        className ??
-        'inline-flex flex-shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50'
-      }
     >
-      {copied ? (
-        <CheckIcon />
-      ) : (
-        <ClipboardIcon />
-      )}
+      {copied ? <CheckIcon /> : <ClipboardIcon />}
       <span className="hidden sm:inline">{copied ? 'Kopiert' : label}</span>
-    </button>
+    </Button>
   );
 }
 

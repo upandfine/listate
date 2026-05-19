@@ -14,6 +14,7 @@ import {
   updateLinkOverrides,
   uploadLinkImage,
 } from '@/app/actions/og-overrides';
+import { Button } from './ui/Button';
 
 interface LinkPreviewInput {
   id: string;
@@ -204,17 +205,12 @@ export function PreviewOverrideButton({ link }: { link: LinkPreviewInput }) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={open}
-        aria-label="Vorschau anpassen"
-        className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-500 transition hover:border-brand hover:bg-brand/5 hover:text-brand"
-      >
+      <Button variant="toolbar" onClick={open} aria-label="Vorschau anpassen">
         <span className="flex items-center gap-1">
           <PreviewIcon />
           <span className="hidden sm:inline">Vorschau</span>
         </span>
-      </button>
+      </Button>
 
       {/* Backdrop-Click: a11y-Lint disable, ESC laeuft via onCancel. */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
@@ -412,21 +408,17 @@ export function PreviewOverrideButton({ link }: { link: LinkPreviewInput }) {
           </section>
 
           <footer className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               onClick={close}
               disabled={saving}
-              className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+              className="disabled:opacity-50"
             >
               Abbrechen
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-dark disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="primary" type="submit" disabled={saving}>
               {saving ? 'Speichert …' : 'Speichern'}
-            </button>
+            </Button>
           </footer>
         </form>
       </dialog>

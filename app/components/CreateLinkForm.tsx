@@ -6,6 +6,7 @@ import { TTL_LABELS, TTL_PRESETS, type TtlPreset } from '@/lib/ttl';
 import { CopyButton } from './CopyButton';
 import { PreviewOverrideButton } from './PreviewOverrideButton';
 import { ShareButton } from './ShareButton';
+import { Button } from './ui/Button';
 
 interface CreateResponse {
   trackingUrl: string;
@@ -116,13 +117,9 @@ export default function CreateLinkForm() {
               disabled={loading}
             />
           </div>
-          <button
-            type="submit"
-            disabled={loading || !host.trim()}
-            className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <Button variant="primary" type="submit" disabled={loading || !host.trim()}>
             {loading ? 'Erzeuge…' : 'Erzeugen'}
-          </button>
+          </Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pt-1">

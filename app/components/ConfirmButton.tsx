@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, type MouseEvent, type ReactNode } from 'react';
+import { Button, type ButtonVariant } from './ui/Button';
 
 interface ConfirmButtonProps {
   /** Server-Action, die nach Bestätigung ausgeführt wird. */
@@ -9,7 +10,12 @@ interface ConfirmButtonProps {
   hiddenFields?: Record<string, string>;
   /** Inhalt des Auslöser-Buttons (Icon + Text o. Ä.). */
   buttonLabel: ReactNode;
-  /** Tailwind-Klassen für den Auslöser-Button. */
+  /**
+   * Variante des Auslöser-Buttons (Default `secondary`). Wird ignoriert,
+   * wenn `buttonClassName` gesetzt ist (Legacy-Override).
+   */
+  buttonVariant?: ButtonVariant;
+  /** Legacy: vollständiger Klassen-Override für den Auslöser-Button. */
   buttonClassName?: string;
   /** Aria-Label, falls Button nur ein Icon enthält. */
   buttonAriaLabel?: string;
@@ -32,6 +38,7 @@ export function ConfirmButton({
   formAction,
   hiddenFields,
   buttonLabel,
+  buttonVariant = 'secondary',
   buttonClassName,
   buttonAriaLabel,
   title,
@@ -57,17 +64,24 @@ export function ConfirmButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={open}
-        aria-label={buttonAriaLabel}
-        className={
-          buttonClassName ??
-          'rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50'
-        }
-      >
-        {buttonLabel}
-      </button>
+      {buttonClassName ? (
+        <button
+          type="button"
+          onClick={open}
+          aria-label={buttonAriaLabel}
+          className={buttonClassName}
+        >
+          {buttonLabel}
+        </button>
+      ) : (
+        <Button
+          variant={buttonVariant}
+          onClick={open}
+          aria-label={buttonAriaLabel}
+        >
+          {buttonLabel}
+        </Button>
+      )}
 
       {/*
         Backdrop-Click schliesst das Modal. a11y-Lint moniert das fehlende
@@ -98,23 +112,12 @@ export function ConfirmButton({
           </header>
 
           <footer className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={close}
-              className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
-            >
+            <Button variant="ghost" onClick={close}>
               Abbrechen
-            </button>
-            <button
-              type="submit"
-              className={
-                danger
-                  ? 'rounded-md bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-dark'
-                  : 'rounded-md bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-dark'
-              }
-            >
+            </Button>
+            <Button variant={danger ? 'danger' : 'primary'} type="submit">
               {confirmLabel}
-            </button>
+            </Button>
           </footer>
         </form>
       </dialog>

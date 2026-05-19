@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Button } from './ui/Button';
 
 /**
  * Button mit Modal: zeigt QR-Code als SVG, bietet PNG-Download.
@@ -70,18 +71,15 @@ export function QrButton({
 
   return (
     <>
-      <button
-        type="button"
+      <Button
+        variant="secondary"
+        className={className}
         onClick={open}
         aria-label={`QR-Code für ${value}`}
-        className={
-          className ??
-          'inline-flex flex-shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50'
-        }
       >
         <QrIcon />
         <span className="hidden sm:inline">QR</span>
-      </button>
+      </Button>
 
       {/* Backdrop-Click: a11y-Lint disable, ESC laeuft via onCancel. */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
@@ -122,13 +120,9 @@ export function QrButton({
                 PNG herunterladen
               </a>
             )}
-            <button
-              type="button"
-              onClick={close}
-              className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark"
-            >
+            <Button variant="primary" onClick={close}>
               Schließen
-            </button>
+            </Button>
           </footer>
         </div>
       </dialog>
