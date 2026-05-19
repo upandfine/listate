@@ -393,13 +393,35 @@ Wartbarkeit langfristig sauber bleibt.
 - ~~`useTemplate` umbenennen in `applyTemplate`~~: umgesetzt mit D9.
 - ~~Action-File splitten nach Domain~~: siehe Punkt 9 unten.
 
-**5. Komponenten-Architektur**
-- `CreateLinkForm` und `EditLinkButton` haben überlappende
-  URL-/Slug-/Tags-Eingabe-Logik. Extrahieren in `LinkFormFields` (Shared
-  Component) – DRY-Prinzip.
-- Wiederverwendbare UI-Primitives (`<Button>`, `<Input>`, `<Modal>`,
-  `<Badge>`) statt überall Tailwind-Klassen-Wiederholung.
-- Shared Types nach `types/` (Link-Detail, ServerActionResult, …).
+**5. Komponenten-Architektur** — überwiegend umgesetzt (fokussierter Scope)
+- ~~`CreateLinkForm`/`EditLinkButton` überlappende Slug-/Tags-Logik~~:
+  [`app/components/LinkFormFields.tsx`](app/components/LinkFormFields.tsx)
+  kapselt `SlugField`/`TagsField` plus `stripScheme`/`sanitizeSlug`.
+  Beide Forms nutzen sie; Tags-Input-Styling vereinheitlicht. Die
+  URL-Host-Eingabe blieb pro Form (zu eng mit Submit-Button bzw.
+  Dialog-Shell verzahnt; nur `stripScheme` geteilt).
+- ~~`<Button>`-Primitive~~:
+  [`app/components/ui/Button.tsx`](app/components/ui/Button.tsx) mit
+  Varianten `secondary/toolbar/toolbarDanger/primary/danger/ghost`.
+  Copy/Share/QR/Edit/Preview/Confirm/CreateLinkForm darauf umgestellt;
+  die vorher 6-fach inline duplizierten Klassen-Strings sind weg.
+  ConfirmButton hat neuen `buttonVariant`-Prop (`buttonClassName`
+  bleibt als Legacy-Override für die Admin/Settings-Aufrufer).
+- ~~Shared Types nach `types/`~~:
+  [`types/link.ts`](types/link.ts) exportiert `LinkPreviewInput`
+  (= `OgInput` + id) plus `toLinkPreviewInput`-Mapper. Ersetzt die
+  Inline-Definition in PreviewOverrideButton und das 9-Feld-
+  Objektliteral in Dashboard + Detail-Seite.
+- ~~`<ItemToolbar>` (Feature-J-Hinweis)~~:
+  [`app/components/ItemToolbar.tsx`](app/components/ItemToolbar.tsx)
+  (Dashboard-Aktions-Cluster Bearbeiten/Vorschau/Löschen, inkl.
+  TrashIcon) und
+  [`app/components/TrackingUrlActions.tsx`](app/components/TrackingUrlActions.tsx)
+  (Copy/Share/QR-Trio, vorher dreifach inline). Dashboard +
+  Detail-Seite umgestellt.
+- **Bewusst nicht (Scope „fokussiert"):** flächendeckende
+  `<Input>`/`<Modal>`/`<Badge>`-Primitives. Sinnvoll, wenn ein
+  weiteres Formular/Modal dazukommt; aktuell kein DRY-Druck.
 
 **6. Datenbank-Hygiene** — teilweise umgesetzt
 - ~~Migrationen via `drizzle-kit generate` einrichten~~: erledigt.
@@ -424,8 +446,21 @@ Wartbarkeit langfristig sauber bleibt.
   Vorher war es im initialen Bundle jeder Seite mit `QrButton` (Dashboard,
   Create-Card, Detail-Seite). Heatmap + Sparkline sind Server-Components
   (SSR) → kein Client-Bundle-Impact, kein Lazy-Loading sinnvoll.
-- **Offen:** OG-Bilder im Dashboard via `<Image>` mit Proxy-Loader
-  (Privacy: Owner sieht fremde Hosts nicht direkt).
+- ~~OG-Bilder im Dashboard über eigenen Proxy (Privacy)~~ — umgesetzt
+  (D7). Statt Next-`<Image>`-Loader ein linkId-basierter Proxy
+  (kein offenes `?url=`, daher keine SSRF-Fläche):
+  [`lib/ogImageProxy.ts`](lib/ogImageProxy.ts) (SSRF-Härtung: nur
+  https, Sperre für Loopback/Private/Link-Local/Metadata/IPv6;
+  Timeout + Size-Cap + Content-Type-Check, injizierbarer
+  `HttpClient`),
+  [`app/api/og-image/remote/[id]/route.ts`](app/api/og-image/remote/%5Bid%5D/route.ts)
+  (liest `og_image` aus der DB, streamt mit 1-Tag-Cache, 404 ohne
+  Detail-Leak) und
+  [`lib/displayOg.proxiedOgImage`](lib/displayOg.ts). Das Dashboard-
+  Vorschau-`<img>` nutzt jetzt den Proxy; Custom-Uploads bleiben
+  direkt (schon same-origin); `getDisplayOg` für den Crawler-Pfad
+  `/t/[id]` ist bewusst unverändert (externe URL für Social-Crawler).
+  29 Tests (17 Unit ogImageProxy, 7 Integration Route, 5 displayOg).
 
 **8. Security-Härtung** — überwiegend umgesetzt
 - ~~**CSP-Header**~~ aktiv in [`next.config.mjs`](next.config.mjs):
@@ -649,9 +684,11 @@ sprengten so den Dashboard-`<span>` (Z. 368) und den Detail-`<h1>`
 Titel an, deckt diese Regression also mit ab. 280/375/390 px nach
 dem Fix komplett scrollfrei (Dashboard + Detail).
 
-**Offen (niedrige Prio):** Bei späterem D5-Refactor wandert die
-Toolbar in eine `<ItemToolbar>`-Komponente; die Mobile-Tweaks sind
-dann Teil davon. Galaxy-Fold 280 px ist abgedeckt; reale Geräte-
+**Erledigt mit D5:** Die Toolbar ist jetzt
+[`<ItemToolbar>`](app/components/ItemToolbar.tsx) +
+[`<TrackingUrlActions>`](app/components/TrackingUrlActions.tsx); die
+Mobile-Tweaks (Icon-Only ab `<sm`) leben zentral in den
+Button-Komponenten. Galaxy-Fold 280 px ist abgedeckt; reale Geräte-
 Tests (echtes iOS Safari) bleiben optional.
 
 ---
