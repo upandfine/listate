@@ -610,7 +610,42 @@ programmatischen Focus-Target.
 
 ---
 
-### J. Mobile-Check der Item-Toolbar
+### J. Mobile-Check der Item-Toolbar ✅ umgesetzt
+
+**Stand (2026-05-19):** Option A umgesetzt (Icon-Only auf Mobile,
+minimal-invasiv, kein neuer Komponenten-Code):
+
+- Button-Text-Labels (Bearbeiten/Vorschau/Kopieren/Teilen/QR/Löschen)
+  in `<span className="hidden sm:inline">` gewrappt. Icons +
+  `aria-label` bleiben → Screenreader-tauglich, Desktop unverändert.
+  Betroffen: [EditLinkButton](app/components/EditLinkButton.tsx),
+  [PreviewOverrideButton](app/components/PreviewOverrideButton.tsx),
+  [CopyButton](app/components/CopyButton.tsx),
+  [ShareButton](app/components/ShareButton.tsx),
+  [QrButton](app/components/QrButton.tsx) +
+  ConfirmButton-`buttonLabel` im Dashboard-Aufrufer.
+- Dashboard-Sparkline auf Mobile via `hidden sm:flex` entfernt (der
+  80-px-Block sprengte sonst die Item-Zeile).
+- Detail-Seiten-Toolbar ([links/[id]/page.tsx](app/links/%5Bid%5D/page.tsx)):
+  `<code>` + Button-Gruppe auf Mobile gestapelt (`flex-col`), ab
+  `sm:` wie bisher in einer Reihe.
+
+**Tests:** [tests/e2e/mobile.spec.ts](tests/e2e/mobile.spec.ts) — 3
+Playwright-Tests auf emuliertem iPhone-SE-Viewport (375×667):
+kein horizontaler Scroll auf Dashboard und Detail-Seite,
+Action-Buttons trotz Icon-Only klickbar (Edit-Modal öffnet).
+Viewport explizit emuliert statt `devices['iPhone SE']`-Spread, weil
+letzterer `defaultBrowserType: 'webkit'` mitzieht — wir laufen aber im
+chromium-Projekt (`isMobile`/`hasTouch` sind Chromium-Features).
+
+**Offen (niedrige Prio):** Manueller Cross-Browser-Check (iPhone 12,
+Pixel 5, Galaxy Fold 280 px) — siehe notes/feature-J. Bei späterem
+D5-Refactor wandert die Toolbar in eine `<ItemToolbar>`-Komponente;
+die Mobile-Tweaks sind dann Teil davon.
+
+---
+
+#### Original-Problembeschreibung (zur Nachvollziehbarkeit)
 
 **Problem (User-Beobachtung, 2026-05-15):** Auf Mobile-Viewports
 brechen die Buttons in der Dashboard-Item-Toolbar visuell aus —
