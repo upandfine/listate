@@ -126,27 +126,29 @@ export default async function LinkDetailPage({
         <div className="text-xs uppercase tracking-wide text-neutral-500">
           Tracking-Link
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <code className="min-w-0 flex-1 truncate rounded bg-neutral-100 px-3 py-2 text-sm">
             {trackingUrl}
           </code>
-          <CopyButton value={trackingUrl} />
-          <ShareButton value={trackingUrl} />
-          <QrButton value={trackingUrl} />
-          <PreviewOverrideButton
-            link={{
-              id: row.id,
-              ogTitle: row.ogTitle,
-              ogDescription: row.ogDescription,
-              ogImage: row.ogImage,
-              ogSiteName: row.ogSiteName,
-              customTitle: row.customTitle,
-              customDescription: row.customDescription,
-              customSiteName: row.customSiteName,
-              customImagePath: row.customImagePath,
-              imageHidden: row.imageHidden,
-            }}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyButton value={trackingUrl} />
+            <ShareButton value={trackingUrl} />
+            <QrButton value={trackingUrl} />
+            <PreviewOverrideButton
+              link={{
+                id: row.id,
+                ogTitle: row.ogTitle,
+                ogDescription: row.ogDescription,
+                ogImage: row.ogImage,
+                ogSiteName: row.ogSiteName,
+                customTitle: row.customTitle,
+                customDescription: row.customDescription,
+                customSiteName: row.customSiteName,
+                customImagePath: row.customImagePath,
+                imageHidden: row.imageHidden,
+              }}
+            />
+          </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
           <span>

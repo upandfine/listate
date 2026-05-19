@@ -477,7 +477,7 @@ export default async function DashboardPage({
                         Klicks
                       </div>
                       {series.length > 0 && (
-                        <div className="mt-1.5 flex justify-start sm:justify-end">
+                        <div className="mt-1.5 hidden justify-end sm:flex">
                           <Sparkline data={series} />
                         </div>
                       )}
@@ -512,7 +512,7 @@ export default async function DashboardPage({
                         buttonLabel={
                           <span className="flex items-center gap-1">
                             <TrashIcon />
-                            Löschen
+                            <span className="hidden sm:inline">Löschen</span>
                           </span>
                         }
                         title="Link wirklich löschen?"

@@ -118,7 +118,7 @@ export function ShareButton({
         }
       >
         <ShareIcon />
-        {label}
+        <span className="hidden sm:inline">{label}</span>
       </button>
 
       {open && (

@@ -80,7 +80,7 @@ export function QrButton({
         }
       >
         <QrIcon />
-        QR
+        <span className="hidden sm:inline">QR</span>
       </button>
 
       {/* Backdrop-Click: a11y-Lint disable, ESC laeuft via onCancel. */}

@@ -60,7 +60,7 @@ export function EditLinkButton({
       >
         <span className="flex items-center gap-1">
           <PencilIcon />
-          Bearbeiten
+          <span className="hidden sm:inline">Bearbeiten</span>
         </span>
       </button>
 

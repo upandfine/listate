@@ -212,7 +212,7 @@ export function PreviewOverrideButton({ link }: { link: LinkPreviewInput }) {
       >
         <span className="flex items-center gap-1">
           <PreviewIcon />
-          Vorschau
+          <span className="hidden sm:inline">Vorschau</span>
         </span>
       </button>
 

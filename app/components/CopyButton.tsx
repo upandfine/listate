@@ -38,7 +38,7 @@ export function CopyButton({
       ) : (
         <ClipboardIcon />
       )}
-      {copied ? 'Kopiert' : label}
+      <span className="hidden sm:inline">{copied ? 'Kopiert' : label}</span>
     </button>
   );
 }
