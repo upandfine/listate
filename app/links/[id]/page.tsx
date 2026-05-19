@@ -3,12 +3,10 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { CopyButton } from '@/app/components/CopyButton';
 import { Heatmap } from '@/app/components/Heatmap';
 import { PreviewOverrideButton } from '@/app/components/PreviewOverrideButton';
-import { QrButton } from '@/app/components/QrButton';
-import { ShareButton } from '@/app/components/ShareButton';
 import { Sparkline } from '@/app/components/Sparkline';
+import { TrackingUrlActions } from '@/app/components/TrackingUrlActions';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { linkListProjection } from '@/db/types';
@@ -23,6 +21,7 @@ import {
 import { getDisplayOg } from '@/lib/displayOg';
 import { parseTags } from '@/lib/tags';
 import { isExpired } from '@/lib/ttl';
+import { toLinkPreviewInput } from '@/types/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,23 +130,8 @@ export default async function LinkDetailPage({
             {trackingUrl}
           </code>
           <div className="flex flex-wrap items-center gap-2">
-            <CopyButton value={trackingUrl} />
-            <ShareButton value={trackingUrl} />
-            <QrButton value={trackingUrl} />
-            <PreviewOverrideButton
-              link={{
-                id: row.id,
-                ogTitle: row.ogTitle,
-                ogDescription: row.ogDescription,
-                ogImage: row.ogImage,
-                ogSiteName: row.ogSiteName,
-                customTitle: row.customTitle,
-                customDescription: row.customDescription,
-                customSiteName: row.customSiteName,
-                customImagePath: row.customImagePath,
-                imageHidden: row.imageHidden,
-              }}
-            />
+            <TrackingUrlActions value={trackingUrl} />
+            <PreviewOverrideButton link={toLinkPreviewInput(row)} />
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">

@@ -12,14 +12,9 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { auth } from '@/auth';
-import { deleteLinkFormAction } from '@/app/actions/links';
-import { ConfirmButton } from '@/app/components/ConfirmButton';
-import { CopyButton } from '@/app/components/CopyButton';
-import { EditLinkButton } from '@/app/components/EditLinkButton';
-import { PreviewOverrideButton } from '@/app/components/PreviewOverrideButton';
-import { QrButton } from '@/app/components/QrButton';
-import { ShareButton } from '@/app/components/ShareButton';
+import { ItemToolbar } from '@/app/components/ItemToolbar';
 import { Sparkline } from '@/app/components/Sparkline';
+import { TrackingUrlActions } from '@/app/components/TrackingUrlActions';
 import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { linkListProjection } from '@/db/types';
@@ -397,9 +392,7 @@ export default async function DashboardPage({
                       >
                         {trackingUrl}
                       </a>
-                      <CopyButton value={trackingUrl} />
-                      <ShareButton value={trackingUrl} />
-                      <QrButton value={trackingUrl} />
+                      <TrackingUrlActions value={trackingUrl} />
                     </div>
 
                     {/* Tags */}
@@ -482,52 +475,7 @@ export default async function DashboardPage({
                         </div>
                       )}
                     </Link>
-                    <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
-                      <EditLinkButton
-                        linkId={link.id}
-                        defaultUrl={link.originalUrl}
-                        defaultSlug={link.slug ?? null}
-                        defaultTags={(linkTags ?? []).join(', ')}
-                        hasExpiry={!!link.expiresAt}
-                      />
-                      <PreviewOverrideButton
-                        link={{
-                          id: link.id,
-                          ogTitle: link.ogTitle,
-                          ogDescription: link.ogDescription,
-                          ogImage: link.ogImage,
-                          ogSiteName: link.ogSiteName,
-                          customTitle: link.customTitle,
-                          customDescription: link.customDescription,
-                          customSiteName: link.customSiteName,
-                          customImagePath: link.customImagePath,
-                          imageHidden: link.imageHidden,
-                        }}
-                      />
-                      <ConfirmButton
-                        formAction={deleteLinkFormAction}
-                        hiddenFields={{ id: link.id }}
-                        buttonAriaLabel="Link löschen"
-                        buttonClassName="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                        buttonLabel={
-                          <span className="flex items-center gap-1">
-                            <TrashIcon />
-                            <span className="hidden sm:inline">Löschen</span>
-                          </span>
-                        }
-                        title="Link wirklich löschen?"
-                        message={
-                          <>
-                            Damit verschwinden Tracking-URL, Klick-Zähler
-                            und Klick-Verlauf unwiderruflich. Die
-                            ursprüngliche Original-URL bleibt natürlich
-                            existieren.
-                          </>
-                        }
-                        confirmLabel="Endgültig löschen"
-                        danger
-                      />
-                    </div>
+                    <ItemToolbar link={link} />
                   </div>
                 </div>
               </li>
@@ -597,24 +545,4 @@ function buildUrl(params: {
   if (params.page && params.page > 1) sp.set('page', String(params.page));
   const qs = sp.toString();
   return qs ? `/dashboard?${qs}` : '/dashboard';
-}
-
-function TrashIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 4 H13" />
-      <path d="M6 4 V2.5 a1 1 0 0 1 1 -1 h2 a1 1 0 0 1 1 1 V4" />
-      <path d="M4.5 4 L5 13 a1 1 0 0 0 1 1 h4 a1 1 0 0 0 1 -1 L11.5 4" />
-    </svg>
-  );
 }
