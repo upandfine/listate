@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getDisplayOg,
   isValidImageFilename,
+  proxiedOgImage,
   type OgInput,
 } from '@/lib/displayOg';
 
@@ -137,5 +138,39 @@ describe('isValidImageFilename', () => {
     '-1a2b3c4d.jpg', // leere ID
   ])('lehnt "%s" ab', (name) => {
     expect(isValidImageFilename(name)).toBe(false);
+  });
+});
+
+describe('proxiedOgImage', () => {
+  const withId = (o: Partial<OgInput> = {}) => ({ ...input(o), id: 'lnkXYZ1' });
+
+  it('externes og_image → eigener Proxy-Pfad', () => {
+    expect(
+      proxiedOgImage(withId({ ogImage: 'https://cdn.foreign.com/x.jpg' }))
+    ).toBe('/api/og-image/remote/lnkXYZ1');
+  });
+
+  it('Custom-Upload → direkter /api/og-image-Pfad (schon same-origin)', () => {
+    expect(
+      proxiedOgImage(withId({ customImagePath: 'AbCdEf-1a2b3c4d.jpg' }))
+    ).toBe('/api/og-image/AbCdEf-1a2b3c4d.jpg');
+  });
+
+  it('imageHidden = 1 → null', () => {
+    expect(
+      proxiedOgImage(
+        withId({ ogImage: 'https://cdn.foreign.com/x.jpg', imageHidden: 1 })
+      )
+    ).toBeNull();
+  });
+
+  it('kein Bild → null', () => {
+    expect(proxiedOgImage(withId())).toBeNull();
+  });
+
+  it('manipulierter customImagePath → null (defensive)', () => {
+    expect(
+      proxiedOgImage(withId({ customImagePath: '../etc/passwd' }))
+    ).toBeNull();
   });
 });

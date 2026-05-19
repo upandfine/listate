@@ -72,3 +72,20 @@ function resolveImage(link: OgInput): string | null {
   }
   return link.ogImage;
 }
+
+/**
+ * Owner-sichere Bild-Quelle fuer interne Ansichten (Dashboard).
+ * Wie `resolveImage`, aber externe Scraper-Bilder werden ueber den
+ * eigenen Proxy `/api/og-image/remote/<id>` geroutet, damit der
+ * Browser des Owners keinen Fremd-Host direkt kontaktiert (Backlog D7).
+ * Custom-Uploads liegen ohnehin schon auf der eigenen Domain.
+ */
+export function proxiedOgImage(link: OgInput & { id: string }): string | null {
+  if (link.imageHidden === 1) return null;
+  if (link.customImagePath) {
+    if (!isValidImageFilename(link.customImagePath)) return null;
+    return `/api/og-image/${link.customImagePath}`;
+  }
+  if (link.ogImage) return `/api/og-image/remote/${link.id}`;
+  return null;
+}

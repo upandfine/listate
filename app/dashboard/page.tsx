@@ -19,7 +19,7 @@ import { getDb } from '@/db';
 import { links, users } from '@/db/schema';
 import { linkListProjection } from '@/db/types';
 import { getBaseUrl } from '@/lib/baseUrl';
-import { getDisplayOg } from '@/lib/displayOg';
+import { getDisplayOg, proxiedOgImage } from '@/lib/displayOg';
 import { paginate, parsePageParam } from '@/lib/pagination';
 import { getClickHistory } from '@/lib/sparkline';
 import { parseTags } from '@/lib/tags';
@@ -345,11 +345,11 @@ export default async function DashboardPage({
               >
                 <div className="flex flex-col sm:flex-row">
                   {(() => {
-                    const og = getDisplayOg(link);
-                    return og.image ? (
+                    const imageSrc = proxiedOgImage(link);
+                    return imageSrc ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
-                        src={og.image}
+                        src={imageSrc}
                         alt=""
                         className="h-32 w-full flex-shrink-0 rounded-t-lg object-cover sm:h-auto sm:w-32 sm:rounded-l-lg sm:rounded-tr-none"
                       />

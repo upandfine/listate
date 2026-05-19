@@ -35,6 +35,7 @@ export default defineConfig({
         'lib/pagination.ts',
         'lib/displayOg.ts',
         'lib/imageStorage.ts',
+        'lib/ogImageProxy.ts',
         'lib/rateLimit.ts',
         'lib/webhook.ts',
         'app/actions/links.ts',
@@ -51,6 +52,7 @@ export default defineConfig({
         'app/api/export/route.ts',
         'app/api/health/route.ts',
         'app/api/og-image/[file]/route.ts',
+        'app/api/og-image/remote/[id]/route.ts',
         'app/t/[id]/route.ts',
       ],
       thresholds: {
