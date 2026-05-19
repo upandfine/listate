@@ -6,6 +6,7 @@ import { TTL_LABELS, TTL_PRESETS, type TtlPreset } from '@/lib/ttl';
 import { CopyButton } from './CopyButton';
 import { PreviewOverrideButton } from './PreviewOverrideButton';
 import { ShareButton } from './ShareButton';
+import { SlugField, TagsField, stripScheme } from './LinkFormFields';
 import { Button } from './ui/Button';
 
 interface CreateResponse {
@@ -32,12 +33,6 @@ export default function CreateLinkForm() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CreateResponse | null>(null);
-
-  // Eingabe normalisieren: mitkopiertes http(s):// und führende Whitespace
-  // entfernen, damit der Präfix nicht doppelt erscheint.
-  function stripScheme(value: string): string {
-    return value.replace(/^\s*https?:\/\//i, '');
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -161,60 +156,23 @@ export default function CreateLinkForm() {
 
         {advancedOpen && (
           <div className="space-y-3 rounded-md border border-neutral-200 bg-neutral-50 p-3">
-            <div className="space-y-1">
-              <label
-                htmlFor="slug"
-                className="block text-xs font-medium text-neutral-700"
-              >
-                Eigener Slug (optional)
-              </label>
-              <div className="flex items-center gap-1 font-mono text-xs">
-                <span className="text-neutral-500">listate.de/t/</span>
-                <input
-                  id="slug"
-                  name="slug"
-                  type="text"
-                  value={slug}
-                  onChange={(e) =>
-                    setSlug(
-                      e.target.value
-                        .toLowerCase()
-                        .replace(/\s+/g, '-')
-                        .replace(/[^a-z0-9_-]/g, '')
-                    )
-                  }
-                  placeholder="gottesdienst-19-5"
-                  maxLength={64}
-                  disabled={loading}
-                  className="flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1 font-mono shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                />
-              </div>
-              <p className="text-xs text-neutral-500">
-                Nur a–z, 0–9, „-&rdquo;, „_&rdquo;. 3–64 Zeichen. Leer lassen → zufällige Kurz-ID.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <label
-                htmlFor="tags"
-                className="block text-xs font-medium text-neutral-700"
-              >
-                Tags (optional)
-              </label>
-              <input
-                id="tags"
-                name="tags"
-                type="text"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="newsletter, predigt, mai-2026"
-                disabled={loading}
-                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-              />
-              <p className="text-xs text-neutral-500">
-                Komma-separiert, max. 8. Werden im Dashboard zum Filtern verwendet.
-              </p>
-            </div>
+            <SlugField
+              id="slug"
+              label="Eigener Slug (optional)"
+              placeholder="gottesdienst-19-5"
+              helpText="Nur a–z, 0–9, „-“, „_“. 3–64 Zeichen. Leer lassen → zufällige Kurz-ID."
+              value={slug}
+              onChange={setSlug}
+              disabled={loading}
+            />
+            <TagsField
+              id="tags"
+              label="Tags (optional)"
+              helpText="Komma-separiert, max. 8. Werden im Dashboard zum Filtern verwendet."
+              value={tags}
+              onChange={setTags}
+              disabled={loading}
+            />
           </div>
         )}
       </form>

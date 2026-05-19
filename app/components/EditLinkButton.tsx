@@ -4,6 +4,7 @@ import { useRef, useState, type MouseEvent } from 'react';
 import { toast } from 'sonner';
 import { updateLink } from '@/app/actions/links';
 import { TTL_LABELS, TTL_PRESETS, type TtlPreset } from '@/lib/ttl';
+import { SlugField, TagsField, stripScheme } from './LinkFormFields';
 import { Button } from './ui/Button';
 
 interface EditLinkButtonProps {
@@ -118,14 +119,12 @@ export function EditLinkButton({
                 name="url"
                 type="text"
                 value={host}
-                onChange={(e) =>
-                  setHost(e.target.value.replace(/^\s*https?:\/\//i, ''))
-                }
+                onChange={(e) => setHost(stripScheme(e.target.value))}
                 onPaste={(e) => {
                   const pasted = e.clipboardData.getData('text');
                   if (/^\s*https?:\/\//i.test(pasted)) {
                     e.preventDefault();
-                    setHost(pasted.replace(/^\s*https?:\/\//i, ''));
+                    setHost(stripScheme(pasted));
                   }
                 }}
                 className="flex-1 rounded-r-md border border-neutral-300 bg-white px-3 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
@@ -136,56 +135,21 @@ export function EditLinkButton({
             </p>
           </div>
 
-          <div className="space-y-1">
-            <label
-              htmlFor={`edit-slug-${linkId}`}
-              className="block text-xs font-medium text-neutral-700"
-            >
-              Slug
-            </label>
-            <div className="flex items-center gap-1 font-mono text-xs">
-              <span className="text-neutral-500">listate.de/t/</span>
-              <input
-                id={`edit-slug-${linkId}`}
-                name="slug"
-                type="text"
-                value={slug}
-                onChange={(e) =>
-                  setSlug(
-                    e.target.value
-                      .toLowerCase()
-                      .replace(/\s+/g, '-')
-                      .replace(/[^a-z0-9_-]/g, '')
-                  )
-                }
-                placeholder="(zufällige Kurz-ID)"
-                maxLength={64}
-                className="flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1 font-mono shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-              />
-            </div>
-            <p className="text-xs text-neutral-500">
-              Leer lassen, um den Slug zu entfernen (Tracking-URL bleibt
-              über die Kurz-ID erreichbar).
-            </p>
-          </div>
+          <SlugField
+            id={`edit-slug-${linkId}`}
+            label="Slug"
+            placeholder="(zufällige Kurz-ID)"
+            helpText="Leer lassen, um den Slug zu entfernen (Tracking-URL bleibt über die Kurz-ID erreichbar)."
+            value={slug}
+            onChange={setSlug}
+          />
 
-          <div className="space-y-1">
-            <label
-              htmlFor={`edit-tags-${linkId}`}
-              className="block text-xs font-medium text-neutral-700"
-            >
-              Tags
-            </label>
-            <input
-              id={`edit-tags-${linkId}`}
-              name="tags"
-              type="text"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="newsletter, predigt, mai-2026"
-              className="w-full rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-            />
-          </div>
+          <TagsField
+            id={`edit-tags-${linkId}`}
+            label="Tags"
+            value={tags}
+            onChange={setTags}
+          />
 
           <div className="space-y-1">
             <label
